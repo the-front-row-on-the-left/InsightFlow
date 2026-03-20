@@ -23,7 +23,7 @@
 
 실행 기준
 
-- Backend: Java 21, Maven
+- Backend: Java 21, Gradle
 - Frontend: Node.js 20+
 
 공통으로 먼저 맞춰둔 것
@@ -38,7 +38,7 @@
 
 1. `.env.example`를 참고해 환경값 준비
 2. `docker compose up -d`
-3. `mvn -pl shared/common-web,services/gateway-service,services/policy-service,services/rate-limit-service,services/usage-service,services/billing-service,services/notification-service,services/recommendation-service -am package`
+3. `gradle build`
 4. 프론트에서 `npm install && npm run dev`
 
 팀 역할 기준

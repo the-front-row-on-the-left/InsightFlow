@@ -1,0 +1,12 @@
+rootProject.name = 'insightflow'
+
+include(
+    ':shared:common-web',
+    ':services:gateway-service',
+    ':services:policy-service',
+    ':services:rate-limit-service',
+    ':services:usage-service',
+    ':services:billing-service',
+    ':services:notification-service',
+    ':services:recommendation-service'
+)
