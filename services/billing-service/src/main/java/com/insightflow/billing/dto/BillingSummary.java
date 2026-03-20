@@ -7,6 +7,8 @@ public record BillingSummary(
         String totalCost,
         @JsonProperty("cost_before_rounding")
         String costBeforeRounding,
-        boolean billable
+        boolean billable,
+        @JsonProperty("item_count")
+        int itemCount
 ) {
 }

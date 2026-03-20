@@ -29,7 +29,13 @@ class BillingServiceApplicationTest {
                 .andExpect(jsonPath("$.data.scope_type").value("user"))
                 .andExpect(jsonPath("$.data.scope_id").value("u_demo_001"))
                 .andExpect(jsonPath("$.data.currency").value("KRW"))
-                .andExpect(jsonPath("$.data.price_table_version").value("2026-03-v1"));
+                .andExpect(jsonPath("$.data.price_table_version").value("2026-03-v1"))
+                .andExpect(jsonPath("$.data.summary.total_cost").value("174.40"))
+                .andExpect(jsonPath("$.data.summary.cost_before_rounding").value("174.4000"))
+                .andExpect(jsonPath("$.data.summary.item_count").value(1))
+                .andExpect(jsonPath("$.data.items[0].pricing_model").value("per_token"))
+                .andExpect(jsonPath("$.data.items[0].prompt_tokens").value(900))
+                .andExpect(jsonPath("$.data.items[0].completion_tokens").value(320));
     }
 
     @Test
@@ -39,7 +45,10 @@ class BillingServiceApplicationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.scope_type").value("team"))
                 .andExpect(jsonPath("$.data.scope_id").value("t_demo"))
-                .andExpect(jsonPath("$.data.items[0].service_id").value("svc_doc_summary"));
+                .andExpect(jsonPath("$.data.summary.total_cost").value("417.20"))
+                .andExpect(jsonPath("$.data.summary.item_count").value(2))
+                .andExpect(jsonPath("$.data.items[0].request_id").value("req_t_002"))
+                .andExpect(jsonPath("$.data.items[0].service_id").value("svc_report_generator"));
     }
 
     @Test
@@ -49,7 +58,30 @@ class BillingServiceApplicationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.scope_type").value("workflow"))
                 .andExpect(jsonPath("$.data.scope_id").value("wf_monthly_report"))
-                .andExpect(jsonPath("$.data.summary.total_cost").value("417.20"));
+                .andExpect(jsonPath("$.data.summary.total_cost").value("417.20"))
+                .andExpect(jsonPath("$.data.period.from").value("2026-03-01"))
+                .andExpect(jsonPath("$.data.period.to").value("2026-03-20"));
+    }
+
+    @Test
+    void returnsPricingTableByVersion() throws Exception {
+        mockMvc.perform(get("/api/billing/pricing-tables/2026-03-v1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.price_table_version").value("2026-03-v1"))
+                .andExpect(jsonPath("$.data.entries[0].service_id").value("svc_doc_summary"))
+                .andExpect(jsonPath("$.data.entries[3].pricing_model").value("fixed"));
+    }
+
+    @Test
+    void returnsZeroTotalsForUnknownUserScope() throws Exception {
+        mockMvc.perform(get("/api/billing/users/u_missing"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.scope_id").value("u_missing"))
+                .andExpect(jsonPath("$.data.summary.total_cost").value("0.00"))
+                .andExpect(jsonPath("$.data.summary.item_count").value(0))
+                .andExpect(jsonPath("$.data.items").isEmpty());
     }
 
     @Test

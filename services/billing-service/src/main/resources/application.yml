@@ -16,6 +16,108 @@ insightflow:
   defaults:
     user-id: ${DEFAULT_USER_ID:u_demo_001}
     team-id: ${DEFAULT_TEAM_ID:t_demo}
+  billing:
+    price-tables:
+      - price-table-version: 2026-02-v1
+        service-id: svc_doc_summary
+        model: gpt-4o-mini
+        pricing-model: per_token
+        currency: KRW
+        unit-price-input: 0.09
+        unit-price-output: 0.35
+        unit-price-request: 0
+        effective-from: 2026-02-01T00:00:00Z
+        effective-to: 2026-02-28T23:59:59Z
+        status: inactive
+      - price-table-version: 2026-03-v1
+        service-id: svc_doc_summary
+        model: gpt-4o-mini
+        pricing-model: per_token
+        currency: KRW
+        unit-price-input: 0.08
+        unit-price-output: 0.32
+        unit-price-request: 0
+        effective-from: 2026-03-01T00:00:00Z
+        effective-to:
+        status: active
+      - price-table-version: 2026-03-v1
+        service-id: svc_report_generator
+        model: gpt-4.1-mini
+        pricing-model: per_token
+        currency: KRW
+        unit-price-input: 0.10
+        unit-price-output: 0.30
+        unit-price-request: 0
+        effective-from: 2026-03-01T00:00:00Z
+        effective-to:
+        status: active
+      - price-table-version: 2026-03-v1
+        service-id: svc_ocr_scan
+        model: ocr-basic
+        pricing-model: per_request
+        currency: KRW
+        unit-price-input: 0
+        unit-price-output: 0
+        unit-price-request: 120.00
+        effective-from: 2026-03-01T00:00:00Z
+        effective-to:
+        status: active
+      - price-table-version: 2026-03-v1
+        service-id: svc_internal_assistant
+        model: internal-fixed
+        pricing-model: fixed
+        currency: KRW
+        unit-price-input: 0
+        unit-price-output: 0
+        unit-price-request: 4900.00
+        effective-from: 2026-03-01T00:00:00Z
+        effective-to:
+        status: active
+    requests:
+      - request-id: req_u_001
+        user-id: u_demo_001
+        team-id: t_demo
+        workflow-id: wf_monthly_report
+        service-id: svc_doc_summary
+        model: gpt-4o-mini
+        status: SUCCEEDED
+        prompt-tokens: 900
+        completion-tokens: 320
+        billable: true
+        occurred-at: 2026-03-20T09:00:00Z
+      - request-id: req_t_002
+        user-id: u_ops_002
+        team-id: t_demo
+        workflow-id: wf_monthly_report
+        service-id: svc_report_generator
+        model: gpt-4.1-mini
+        status: SUCCEEDED
+        prompt-tokens: 1048
+        completion-tokens: 460
+        billable: true
+        occurred-at: 2026-03-20T10:00:00Z
+      - request-id: req_t_003
+        user-id: u_ops_003
+        team-id: t_ops
+        workflow-id: wf_incident_triage
+        service-id: svc_ocr_scan
+        model: ocr-basic
+        status: SUCCEEDED
+        prompt-tokens: 0
+        completion-tokens: 0
+        billable: true
+        occurred-at: 2026-03-19T12:00:00Z
+      - request-id: req_fixed_001
+        user-id: u_finance_001
+        team-id: t_finance
+        workflow-id: wf_finance_close
+        service-id: svc_internal_assistant
+        model: internal-fixed
+        status: REFERENCE
+        prompt-tokens: 0
+        completion-tokens: 0
+        billable: false
+        occurred-at: 2026-03-18T08:00:00Z
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     topics:

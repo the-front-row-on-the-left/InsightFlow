@@ -2,6 +2,7 @@ package com.insightflow.billing.controller;
 
 import com.insightflow.billing.dto.BillingScopeResponse;
 import com.insightflow.billing.dto.BillingStatusResponse;
+import com.insightflow.billing.dto.PricingTableResponse;
 import com.insightflow.billing.service.BillingQueryService;
 import com.insightflow.common.api.ApiResponse;
 import com.insightflow.common.api.ApiResponses;
@@ -36,5 +37,10 @@ public class BillingController {
     @GetMapping("/api/billing/workflows/{workflowId}")
     public ApiResponse<BillingScopeResponse> getWorkflowBilling(@PathVariable String workflowId) {
         return ApiResponses.ok(billingQueryService.getWorkflowBilling(workflowId));
+    }
+
+    @GetMapping("/api/billing/pricing-tables/{version}")
+    public ApiResponse<PricingTableResponse> getPricingTable(@PathVariable String version) {
+        return ApiResponses.ok(billingQueryService.getPricingTable(version));
     }
 }
