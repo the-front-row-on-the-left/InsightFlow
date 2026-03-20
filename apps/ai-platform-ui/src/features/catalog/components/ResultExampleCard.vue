@@ -1,52 +1,60 @@
 <template>
-  <section class="example-card">
-    <p class="eyebrow">Result Example</p>
-    <h3>{{ headline }}</h3>
+  <div class="example-card">
+    <div class="example-header">
+      <span class="eyebrow">결과 예시</span>
+      <h3>{{ headline }}</h3>
+    </div>
     <p class="description">{{ description }}</p>
-    <ul>
-      <li v-for="item in items" :key="item">{{ item }}</li>
-    </ul>
-  </section>
+    <div class="items">
+      <div v-for="item in items" :key="item" class="item">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <circle cx="7" cy="7" r="6" fill="#4f46e5"/>
+          <path d="M4.5 7l2 2 3-3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>{{ item }}</span>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  headline: string
-  description: string
-  items: string[]
-}>()
+defineProps<{ headline: string; description: string; items: string[] }>()
 </script>
 
 <style scoped>
 .example-card {
   padding: 20px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(31, 31, 31, 0.08);
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
+
+.example-header {}
 
 .eyebrow {
-  margin: 0;
-  font-size: 12px;
-  letter-spacing: 0.16em;
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  color: #80592a;
+  letter-spacing: 0.06em;
+  color: #4f46e5;
+  margin-bottom: 6px;
 }
 
-h3 {
-  margin: 8px 0 10px;
-  font-size: 24px;
-}
+h3 { font-size: 16px; font-weight: 700; color: #0f172a; }
+.description { font-size: 13px; color: #64748b; line-height: 1.6; }
 
-.description {
-  margin: 0;
-  color: #514a40;
-}
+.items { display: flex; flex-direction: column; gap: 8px; }
 
-ul {
-  margin: 14px 0 0;
-  padding-left: 18px;
-  display: grid;
+.item {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
 }
 </style>

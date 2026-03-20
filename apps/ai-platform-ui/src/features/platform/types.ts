@@ -11,9 +11,9 @@ export type ErrorCode =
   | 'AI_PROVIDER_ERROR'
   | 'INTERNAL_SERVER_ERROR'
 
-export type CostStatus = 'pending' | 'estimated' | 'completed'
+export type CostStatus = 'pending' | 'estimated' | 'completed' | 'NOT_READY' | 'CALCULATING' | 'READY'
 
-export type RecommendationState = 'pending' | 'available' | 'empty'
+export type RecommendationState = 'pending' | 'available' | 'empty' | 'NONE' | 'READY'
 
 export type ServiceExecutionMode = 'real' | 'mock'
 

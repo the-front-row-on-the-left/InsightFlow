@@ -1,3 +1,4 @@
+import { env } from '../../config/env'
 import { fetchJson } from '../../lib/api'
 import { getServiceDetailRecord, listCatalogServices as listCatalogServicesMock } from './mockRuntime'
 import type { CatalogQuery, ServiceCatalogItemDto, ServiceDetailDto, ServiceId } from './types'
@@ -40,7 +41,7 @@ export function createHttpCatalogApi(): CatalogApi {
   }
 }
 
-export const catalogApi = createMockCatalogApi()
+export const catalogApi = env.useMockApi ? createMockCatalogApi() : createHttpCatalogApi()
 
 export async function getCatalogServices(query?: CatalogQuery) {
   return catalogApi.listServices(query)

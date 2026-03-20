@@ -1,3 +1,4 @@
+import { env } from '../../config/env'
 import { ApiRequestError, fetchJson, postJson } from '../../lib/api'
 import { getMockServiceDetail } from './mockData'
 import { createExecutionRecord, getExecutionRecord } from './mockRuntime'
@@ -36,7 +37,7 @@ export function createHttpExecutionApi(): ExecutionApi {
   }
 }
 
-export const executionApi = createMockExecutionApi()
+export const executionApi = env.useMockApi ? createMockExecutionApi() : createHttpExecutionApi()
 
 export async function createExecution(input: ExecutionCreateRequest) {
   const response = await executionApi.createExecution(input)

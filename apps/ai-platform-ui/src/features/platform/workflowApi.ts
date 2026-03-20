@@ -1,3 +1,4 @@
+import { env } from '../../config/env'
 import { fetchJson, postJson } from '../../lib/api'
 import { createWorkflowRecord, getWorkflowRecord } from './mockRuntime'
 import type { WorkflowDto } from './types'
@@ -32,7 +33,7 @@ export function createHttpWorkflowApi(): WorkflowApi {
   }
 }
 
-export const workflowApi = createMockWorkflowApi()
+export const workflowApi = env.useMockApi ? createMockWorkflowApi() : createHttpWorkflowApi()
 
 export async function createWorkflow(input: WorkflowCreateInput) {
   return workflowApi.createWorkflow(input)

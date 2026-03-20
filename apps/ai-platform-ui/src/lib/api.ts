@@ -52,7 +52,27 @@ export class ApiRequestError extends Error {
 }
 
 async function parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
-  const payload = (await response.json()) as ApiResponse<T>
+  let payload: ApiResponse<T> | null = null
+
+  try {
+    payload = (await response.json()) as ApiResponse<T>
+  } catch {
+    if (!response.ok) {
+      throw new ApiRequestError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: `Request failed with status ${response.status}`,
+        requestId: response.headers.get('X-Request-Id') ?? 'req_unknown',
+        status: response.status,
+      })
+    }
+
+    throw new ApiRequestError({
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Response body could not be parsed as JSON.',
+      requestId: response.headers.get('X-Request-Id') ?? 'req_unknown',
+      status: response.status,
+    })
+  }
 
   if ('success' in payload && !payload.success) {
     throw new ApiRequestError({

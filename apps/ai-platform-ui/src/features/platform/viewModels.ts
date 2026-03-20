@@ -6,10 +6,21 @@ import type {
   WorkflowDraft,
   WorkflowStepDto,
 } from './types'
-import { buildServiceCards } from './mockData'
 
 export function toCatalogCards(services: ServiceCatalogItemDto[]): CatalogServiceCardViewModel[] {
-  return buildServiceCards(services)
+  return services.map((service) => ({
+    id: service.service_id,
+    name: service.name,
+    categoryLabel: service.category,
+    pricingLabel: service.pricing_model,
+    description: service.short_description,
+    modelSummary: service.supported_models.join(', '),
+    workflowRole: service.workflow_role,
+    badges: [
+      service.execution_mode === 'real' ? 'Live Demo' : 'Mock',
+      ...(service.recommended ? ['Recommended'] : []),
+    ],
+  }))
 }
 
 export function toExecutionResultViewModel(detail: ExecutionDetailDto): ExecutionResultViewModel {
