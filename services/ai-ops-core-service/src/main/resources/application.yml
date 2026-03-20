@@ -30,3 +30,11 @@ insightflow:
   kafka:
     topics:
       ai-requested: ${AI_REQUESTED_TOPIC:ai.requested}
+      ai-completed: ${AI_COMPLETED_TOPIC:ai.completed}
+  ai:
+    openai:
+      enabled: ${OPENAI_ENABLED:true}
+      api-key: ${OPENAI_API_KEY:}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      model: ${OPENAI_MODEL:gpt-4.1-mini}
+      timeout-seconds: ${OPENAI_TIMEOUT_SECONDS:45}

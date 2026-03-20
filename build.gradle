@@ -108,6 +108,7 @@ project(':services:usage-service') {
         implementation 'org.springframework.boot:spring-boot-starter-jdbc'
         implementation 'org.springframework.kafka:spring-kafka'
         implementation 'org.flywaydb:flyway-core'
+        implementation 'org.flywaydb:flyway-database-postgresql'
         runtimeOnly 'org.postgresql:postgresql'
         testImplementation 'com.h2database:h2'
     }
@@ -118,6 +119,7 @@ project(':services:billing-service') {
         implementation 'org.springframework.boot:spring-boot-starter-jdbc'
         implementation 'org.springframework.kafka:spring-kafka'
         implementation 'org.flywaydb:flyway-core'
+        implementation 'org.flywaydb:flyway-database-postgresql'
         runtimeOnly 'org.postgresql:postgresql'
         testImplementation 'com.h2database:h2'
     }
@@ -125,6 +127,11 @@ project(':services:billing-service') {
 
 project(':services:notification-service') {
     dependencies {
+        implementation 'org.springframework.boot:spring-boot-starter-jdbc'
         implementation 'org.springframework.kafka:spring-kafka'
+        implementation 'org.flywaydb:flyway-core'
+        implementation 'org.flywaydb:flyway-database-postgresql'
+        runtimeOnly 'org.postgresql:postgresql'
+        testImplementation 'com.h2database:h2'
     }
 }

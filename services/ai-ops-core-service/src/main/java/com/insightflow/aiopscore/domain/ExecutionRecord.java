@@ -42,7 +42,11 @@ public record ExecutionRecord(
                 serviceId,
                 workflowId,
                 status,
-                new OrchestrationTargets("policy-service", "rate-limit-service", "mock-ai-provider"),
+                new OrchestrationTargets(
+                        "policy-service",
+                        "rate-limit-service",
+                        result == null || result.provider() == null ? "pending" : result.provider()
+                ),
                 result
         );
     }

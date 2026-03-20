@@ -56,6 +56,7 @@ public class JdbcPricingTableRepository implements PricingTableRepository {
                     price_table_version, service_id, model, pricing_model, currency, unit_price_input,
                     unit_price_output, unit_price_request, effective_from, effective_to, status, created_at
                 ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, current_timestamp)
+                on conflict (price_table_version, service_id, model, effective_from) do nothing
                 """,
                 entry.priceTableVersion(),
                 entry.serviceId(),

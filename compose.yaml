@@ -98,9 +98,15 @@ services:
         SERVICE_PORT: 8085
     container_name: insightflow-notification-service
     depends_on:
+      - postgres
       - kafka
     environment:
       APP_ENVIRONMENT: docker
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-insightflow}
+      DB_USERNAME: ${POSTGRES_USER:-insightflow}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-insightflow}
       NOTIFICATION_PORT: 8085
       KAFKA_BOOTSTRAP_SERVERS: kafka:19092
     ports:
@@ -150,6 +156,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       RATE_LIMIT_REPOSITORY_TYPE: redis
+      USER_DAILY_LIMIT: ${USER_DAILY_LIMIT:-100}
+      TEAM_DAILY_LIMIT: ${TEAM_DAILY_LIMIT:-300}
       KAFKA_BOOTSTRAP_SERVERS: kafka:19092
     ports:
       - "8082:8082"
@@ -168,6 +176,11 @@ services:
       POLICY_SERVICE_BASE_URL: http://policy-service:8081
       RATE_LIMIT_SERVICE_BASE_URL: http://rate-limit-service:8082
       KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+      OPENAI_ENABLED: ${OPENAI_ENABLED:-true}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-45}
     ports:
       - "8087:8087"
 
@@ -183,6 +196,45 @@ services:
       AI_OPS_CORE_SERVICE_BASE_URL: http://ai-ops-core-service:8087
     ports:
       - "8080:8080"
+
+  ai-platform-ui:
+    build:
+      context: ./apps/ai-platform-ui
+      dockerfile: Dockerfile
+    container_name: insightflow-ai-platform-ui
+    depends_on:
+      - gateway-service
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+      VITE_DEFAULT_USER_ID: ${DEFAULT_USER_ID:-u_demo_001}
+      VITE_DEFAULT_TEAM_ID: ${DEFAULT_TEAM_ID:-t_demo}
+      VITE_USE_MOCK_API: "false"
+    ports:
+      - "${PLATFORM_UI_PORT:-5173}:5173"
+
+  ai-ops-dashboard-ui:
+    build:
+      context: ./apps/ai-ops-dashboard-ui
+      dockerfile: Dockerfile
+    container_name: insightflow-ai-ops-dashboard-ui
+    depends_on:
+      - usage-service
+      - billing-service
+      - notification-service
+      - recommendation-service
+      - ai-ops-core-service
+      - gateway-service
+    environment:
+      VITE_USAGE_SERVICE_BASE_URL: http://localhost:8083
+      VITE_BILLING_SERVICE_BASE_URL: http://localhost:8084
+      VITE_NOTIFICATION_SERVICE_BASE_URL: http://localhost:8085
+      VITE_RECOMMENDATION_SERVICE_BASE_URL: http://localhost:8086
+      VITE_AI_OPS_CORE_SERVICE_BASE_URL: http://localhost:8087
+      VITE_GATEWAY_SERVICE_BASE_URL: http://localhost:8080
+      VITE_DEFAULT_USER_ID: ${DEFAULT_USER_ID:-u_demo_001}
+      VITE_DEFAULT_TEAM_ID: ${DEFAULT_TEAM_ID:-t_demo}
+    ports:
+      - "${AI_OPS_DASHBOARD_PORT:-5174}:5174"
 
 volumes:
   postgres_data:

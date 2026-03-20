@@ -30,4 +30,17 @@ public class KafkaEventPublisher {
                     topic, envelope.eventType(), envelope.requestId(), exception);
         }
     }
+
+    public void publish(String topic, String key, Object payload) {
+        try {
+            kafkaTemplate.send(topic, key, payload)
+                    .whenComplete((result, throwable) -> {
+                        if (throwable != null) {
+                            log.warn("event_publish_failed topic={} key={}", topic, key, throwable);
+                        }
+                    });
+        } catch (RuntimeException exception) {
+            log.warn("event_publish_failed topic={} key={}", topic, key, exception);
+        }
+    }
 }

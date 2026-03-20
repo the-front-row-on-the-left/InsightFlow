@@ -63,11 +63,12 @@ class AiOpsCoreExecutionControllerTest {
                         .header("X-Request-Id", "req_valid_12345")
                         .content("""
                                 {
-                                  "service_id": "svc_doc_summary",
+                                  "service_id": "svc_doc_search",
                                   "workflow_id": "wf_001",
                                   "model": "gpt-4o-mini",
                                   "input": {
-                                    "text": "hello gateway"
+                                    "query": "hello gateway",
+                                    "document_scope": "ops"
                                   }
                                 }
                                 """))
@@ -76,7 +77,10 @@ class AiOpsCoreExecutionControllerTest {
                 .andExpect(jsonPath("$.meta.request_id").value("req_valid_12345"))
                 .andExpect(jsonPath("$.data.execution_id").isNotEmpty())
                 .andExpect(jsonPath("$.data.request_id").value("req_valid_12345"))
-                .andExpect(jsonPath("$.data.status").value("SUCCEEDED"));
+                .andExpect(jsonPath("$.data.status").value("SUCCEEDED"))
+                .andExpect(jsonPath("$.data.result.payload.type").value("doc_search"))
+                .andExpect(jsonPath("$.data.result.payload.answer_summary").isNotEmpty())
+                .andExpect(jsonPath("$.data.result.payload.top_chunks[0].doc_id").isNotEmpty());
     }
 
     @Test
@@ -88,11 +92,11 @@ class AiOpsCoreExecutionControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "service_id": "svc_doc_summary",
+                                  "service_id": "svc_doc_search",
                                   "workflow_id": "wf_001",
                                   "model": "gpt-4o",
                                   "input": {
-                                    "text": "blocked"
+                                    "query": "blocked"
                                   }
                                 }
                                 """))
@@ -107,11 +111,11 @@ class AiOpsCoreExecutionControllerTest {
                         .header("X-Request-Id", "req_detail_123")
                         .content("""
                                 {
-                                  "service_id": "svc_doc_summary",
+                                  "service_id": "svc_doc_search",
                                   "workflow_id": "wf_001",
                                   "model": "gpt-4o-mini",
                                   "input": {
-                                    "text": "detail please"
+                                    "query": "detail please"
                                   }
                                 }
                                 """))
@@ -125,6 +129,8 @@ class AiOpsCoreExecutionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.execution_id").value(executionId))
                 .andExpect(jsonPath("$.data.request_id").value("req_detail_123"))
-                .andExpect(jsonPath("$.data.status").value("SUCCEEDED"));
+                .andExpect(jsonPath("$.data.status").value("SUCCEEDED"))
+                .andExpect(jsonPath("$.data.result.payload.type").value("doc_search"))
+                .andExpect(jsonPath("$.data.result.payload.citations[0].title").isNotEmpty());
     }
 }

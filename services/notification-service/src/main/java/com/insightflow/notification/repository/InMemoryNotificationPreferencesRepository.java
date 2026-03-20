@@ -6,9 +6,7 @@ import com.insightflow.notification.domain.NotificationPreferenceStatus;
 import com.insightflow.notification.domain.NotificationPreferences;
 import com.insightflow.notification.domain.NotificationSubscriptionPreference;
 import java.util.List;
-import org.springframework.stereotype.Repository;
 
-@Repository
 public class InMemoryNotificationPreferencesRepository implements NotificationPreferencesRepository {
 
     private static final List<NotificationSubscriptionPreference> DEFAULT_SUBSCRIPTIONS = List.of(

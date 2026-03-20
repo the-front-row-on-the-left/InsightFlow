@@ -33,10 +33,6 @@ public class BillingPersistenceBootstrap implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (pricingTableRepository.count() > 0) {
-            seedBillingRecords();
-            return;
-        }
         pricingTableRepository.saveAll(priceEntries());
         seedBillingRecords();
     }

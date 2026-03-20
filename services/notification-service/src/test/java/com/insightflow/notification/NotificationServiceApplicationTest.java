@@ -6,11 +6,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.insightflow.notification.domain.CostCalculatedEvent;
 import com.insightflow.notification.domain.LimitExceededEvent;
-import com.insightflow.notification.repository.InternalNotificationRepository;
 import com.insightflow.notification.service.NotificationEventConsumerService;
 import java.math.BigDecimal;
 import java.time.Instant;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -18,7 +16,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:notification-service;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.kafka.listener.auto-startup=false"
+})
 @AutoConfigureMockMvc
 class NotificationServiceApplicationTest {
 
@@ -31,14 +35,6 @@ class NotificationServiceApplicationTest {
     @Autowired
     private NotificationEventConsumerService notificationEventConsumerService;
 
-    @Autowired
-    private InternalNotificationRepository internalNotificationRepository;
-
-    @BeforeEach
-    void clearNotifications() {
-        internalNotificationRepository.clear();
-    }
-
     @Test
     void returnsHealth() throws Exception {
         mockMvc.perform(get("/health"))
@@ -49,19 +45,25 @@ class NotificationServiceApplicationTest {
     }
 
     @Test
+    void returnsSeededNotificationsForDefaultContext() throws Exception {
+        mockMvc.perform(get("/internal/notifications"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.data[0].notification_id").isNotEmpty())
+                .andExpect(jsonPath("$.data[0].event_type").isNotEmpty())
+                .andExpect(jsonPath("$.data[0].occurred_at").isNotEmpty());
+    }
+
+    @Test
     void returnsSubscriptions() throws Exception {
         mockMvc.perform(get("/internal/notifications/subscriptions"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data[0].event_type").value("limit.exceeded"))
-                .andExpect(jsonPath("$.data[0].channel").value("team_digest"))
-                .andExpect(jsonPath("$.data[0].status").value("active"))
-                .andExpect(jsonPath("$.data[1].event_type").value("cost.calculated"))
-                .andExpect(jsonPath("$.data[1].channel").value("team_digest"))
-                .andExpect(jsonPath("$.data[1].status").value("active"))
-                .andExpect(jsonPath("$.data[2].event_type").value("limit.exceeded"))
-                .andExpect(jsonPath("$.data[2].channel").value("user_inbox"))
-                .andExpect(jsonPath("$.data[2].status").value("active"));
+                .andExpect(jsonPath("$.data.length()").value(3))
+                .andExpect(jsonPath("$.data[?(@.event_type=='limit.exceeded' && @.channel=='team_digest' && @.status=='active')]").isNotEmpty())
+                .andExpect(jsonPath("$.data[?(@.event_type=='cost.calculated' && @.channel=='team_digest' && @.status=='active')]").isNotEmpty())
+                .andExpect(jsonPath("$.data[?(@.event_type=='limit.exceeded' && @.channel=='user_inbox' && @.status=='active')]").isNotEmpty());
     }
 
     @Test
@@ -92,7 +94,7 @@ class NotificationServiceApplicationTest {
         mockMvc.perform(get("/internal/notifications"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.length()").value(3))
+                .andExpect(jsonPath("$.data.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(5)))
                 .andExpect(jsonPath("$.data[?(@.event_type=='limit.exceeded' && @.recipient_type=='user' && @.recipient_id=='u_demo_001' && @.channel=='user_inbox')]").isNotEmpty())
                 .andExpect(jsonPath("$.data[?(@.event_type=='limit.exceeded' && @.recipient_type=='team' && @.recipient_id=='t_demo' && @.channel=='team_digest')]").isNotEmpty())
                 .andExpect(jsonPath("$.data[?(@.event_type=='cost.calculated' && @.recipient_type=='team' && @.recipient_id=='t_demo' && @.channel=='team_digest')]").isNotEmpty());

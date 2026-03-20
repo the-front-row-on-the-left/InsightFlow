@@ -1,5 +1,7 @@
 package com.insightflow.billing.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.insightflow.billing.domain.BillingRecord;
 import com.insightflow.billing.domain.BillingRequestUsage;
 import com.insightflow.billing.domain.CalculatedCostEvent;
@@ -17,17 +19,20 @@ import org.springframework.stereotype.Component;
 @Component
 public class UsageTrackedConsumer {
 
+    private final ObjectMapper objectMapper;
     private final PricingTableRepository pricingTableRepository;
     private final BillingRecordRepository billingRecordRepository;
     private final BillingCostCalculator billingCostCalculator;
     private final CostCalculatedPublisher costCalculatedPublisher;
 
     public UsageTrackedConsumer(
+            ObjectMapper objectMapper,
             PricingTableRepository pricingTableRepository,
             BillingRecordRepository billingRecordRepository,
             BillingCostCalculator billingCostCalculator,
             CostCalculatedPublisher costCalculatedPublisher
     ) {
+        this.objectMapper = objectMapper;
         this.pricingTableRepository = pricingTableRepository;
         this.billingRecordRepository = billingRecordRepository;
         this.billingCostCalculator = billingCostCalculator;
@@ -35,7 +40,8 @@ public class UsageTrackedConsumer {
     }
 
     @KafkaListener(topics = "${insightflow.kafka.topics.usage-tracked}", groupId = "${spring.application.name}")
-    public void consume(UsageTrackedEvent event) {
+    public void consume(String payload) {
+        UsageTrackedEvent event = readValue(payload, UsageTrackedEvent.class);
         if (billingRecordRepository.existsByRequestId(event.requestId())) {
             return;
         }
@@ -78,5 +84,13 @@ public class UsageTrackedConsumer {
                 billingRecord.status(),
                 OffsetDateTime.now(ZoneOffset.UTC)
         ));
+    }
+
+    private <T> T readValue(String payload, Class<T> type) {
+        try {
+            return objectMapper.readValue(payload, type);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalArgumentException("Failed to deserialize Kafka payload for " + type.getSimpleName(), exception);
+        }
     }
 }

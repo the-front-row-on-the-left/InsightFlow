@@ -75,7 +75,7 @@ public class NotificationEventConsumerService {
                 recipient.id(),
                 titleFor(event),
                 messageFor(event),
-                "ready",
+                "OPEN",
                 event.occurredAt(),
                 event.metadata()
         );

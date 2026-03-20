@@ -141,6 +141,10 @@ public class InMemoryUsageRecordRepository implements UsageRecordRepository {
 
     private final List<UsageRecord> records = new ArrayList<>(SEEDED_RECORDS);
 
+    public static List<UsageRecord> seededRecords() {
+        return SEEDED_RECORDS;
+    }
+
     @Override
     public List<UsageRecord> findAll() {
         return List.copyOf(records);
