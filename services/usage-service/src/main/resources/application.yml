@@ -30,5 +30,3 @@ insightflow:
       usage-tracked: ${USAGE_TRACKED_TOPIC:usage.tracked}
       policy-checked: ${POLICY_CHECKED_TOPIC:policy.checked}
       limit-applied: ${LIMIT_APPLIED_TOPIC:limit.applied}
-  usage:
-    seed-data-enabled: ${USAGE_SEED_DATA_ENABLED:true}

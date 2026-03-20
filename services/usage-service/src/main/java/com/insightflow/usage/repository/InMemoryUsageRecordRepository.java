@@ -137,10 +137,6 @@ public class InMemoryUsageRecordRepository implements UsageRecordRepository {
             )
     );
 
-    public static List<UsageRecord> seededRecords() {
-        return SEEDED_RECORDS;
-    }
-
     @Override
     public List<UsageRecord> findAll() {
         return SEEDED_RECORDS;

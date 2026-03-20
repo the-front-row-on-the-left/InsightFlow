@@ -96,31 +96,6 @@ public class JdbcUsageRecordRepository implements UsageRecordRepository {
         );
     }
 
-    public void saveSeedRecord(UsageRecord record) {
-        save(
-                new TrackedUsageEvent(
-                        "seed_usage_tracked_" + record.requestId(),
-                        TrackedUsageEvent.EVENT_TYPE,
-                        record.requestId(),
-                        record.userId(),
-                        record.teamId(),
-                        record.serviceId(),
-                        record.workflowId(),
-                        record.model(),
-                        record.status(),
-                        record.promptTokens(),
-                        record.completionTokens(),
-                        record.totalTokens(),
-                        record.latencyMs(),
-                        !"BLOCKED".equals(record.status()),
-                        record.requestedAt(),
-                        record.requestedAt()
-                ),
-                record.policyResult(),
-                record.limitResult()
-        );
-    }
-
     public long count() {
         Long count = jdbcTemplate.queryForObject("select count(*) from usage_records", Long.class);
         return count == null ? 0 : count;
