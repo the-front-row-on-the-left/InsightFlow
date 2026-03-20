@@ -45,3 +45,76 @@ class UsageSnapshot(BaseModel):
     current_total_tokens_per_request: int
     candidate_total_tokens_per_request: int
     policy_allowed: bool
+
+    @property
+    def monthly_cost_savings(self) -> float:
+        return (self.current_cost_per_request - self.candidate_cost_per_request) * self.monthly_requests
+
+    @property
+    def monthly_token_savings(self) -> int:
+        return (
+            self.current_total_tokens_per_request - self.candidate_total_tokens_per_request
+        ) * self.monthly_requests
+
+    @property
+    def cost_reduction_ratio(self) -> float:
+        if self.current_cost_per_request == 0:
+            return 0.0
+        return (self.current_cost_per_request - self.candidate_cost_per_request) / self.current_cost_per_request
+
+    @property
+    def token_reduction_ratio(self) -> float:
+        if self.current_total_tokens_per_request == 0:
+            return 0.0
+        return (
+            self.current_total_tokens_per_request - self.candidate_total_tokens_per_request
+        ) / self.current_total_tokens_per_request
+
+
+class SnapshotBatch(BaseModel):
+    period: RecommendationPeriod
+    snapshots: list[UsageSnapshot]
+
+
+class RuleEvaluationResult(BaseModel):
+    accepted: bool
+    recommendation_type: str
+    snapshot: UsageSnapshot
+    confidence: Literal["low", "medium", "high"] = "low"
+    reason: str
+    estimated_monthly_savings: float = 0.0
+    estimated_token_savings: int = 0
+
+    @classmethod
+    def accept(
+        cls,
+        *,
+        snapshot: UsageSnapshot,
+        recommendation_type: str,
+        confidence: Literal["low", "medium", "high"],
+        reason: str,
+    ) -> "RuleEvaluationResult":
+        return cls(
+            accepted=True,
+            recommendation_type=recommendation_type,
+            snapshot=snapshot,
+            confidence=confidence,
+            reason=reason,
+            estimated_monthly_savings=snapshot.monthly_cost_savings,
+            estimated_token_savings=snapshot.monthly_token_savings,
+        )
+
+    @classmethod
+    def reject(
+        cls,
+        *,
+        snapshot: UsageSnapshot,
+        recommendation_type: str,
+        reason: str,
+    ) -> "RuleEvaluationResult":
+        return cls(
+            accepted=False,
+            recommendation_type=recommendation_type,
+            snapshot=snapshot,
+            reason=reason,
+        )
