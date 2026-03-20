@@ -8,6 +8,7 @@ from app.models.recommendation import (
     RuleEvaluationResult,
     UsageSnapshot,
 )
+from app.services.http_snapshot_repository import HttpSnapshotRepository
 from app.services.recommendation_rules import RecommendationRule, SavingsRecommendationRule
 from app.services.snapshot_repository import SnapshotRepository, StaticSnapshotRepository
 
@@ -18,7 +19,7 @@ class RecommendationEngine:
         snapshot_repository: SnapshotRepository | None = None,
         rules: Sequence[RecommendationRule] | None = None,
     ) -> None:
-        self._snapshot_repository = snapshot_repository or StaticSnapshotRepository()
+        self._snapshot_repository = snapshot_repository or HttpSnapshotRepository()
         self._rules = list(rules or [SavingsRecommendationRule()])
 
     def build_recommendations(self, user_id: str) -> RecommendationResponseData:

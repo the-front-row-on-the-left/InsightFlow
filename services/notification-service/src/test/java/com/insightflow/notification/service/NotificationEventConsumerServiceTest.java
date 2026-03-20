@@ -4,11 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.insightflow.notification.config.NotificationContextDefaults;
 import com.insightflow.notification.domain.CostCalculatedEvent;
+import com.insightflow.notification.domain.LimitExceededEvent;
 import com.insightflow.notification.domain.NotificationChannel;
 import com.insightflow.notification.domain.NotificationPreferenceStatus;
 import com.insightflow.notification.domain.NotificationPreferences;
 import com.insightflow.notification.domain.NotificationSubscriptionPreference;
-import com.insightflow.notification.domain.OptimizationRecommendedEvent;
 import com.insightflow.notification.repository.InMemoryInternalNotificationRepository;
 import com.insightflow.notification.repository.InMemoryNotificationPreferencesRepository;
 import java.math.BigDecimal;
@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 class NotificationEventConsumerServiceTest {
 
     @Test
-    void consumesCostCalculatedEventIntoTeamDigestNotification() {
+    void consumesHighCostCalculatedEventIntoTeamDigestNotification() {
         var defaults = new NotificationContextDefaults("u_demo_001", "t_demo");
         var internalNotificationRepository = new InMemoryInternalNotificationRepository();
         var service = new NotificationEventConsumerService(
@@ -35,7 +35,7 @@ class NotificationEventConsumerServiceTest {
                 "wf_monthly_report",
                 "gpt-4o-mini",
                 "KRW",
-                new BigDecimal("184.23"),
+                new BigDecimal("1184.23"),
                 Instant.parse("2026-03-20T10:15:30Z")
         ));
 
@@ -52,7 +52,7 @@ class NotificationEventConsumerServiceTest {
     }
 
     @Test
-    void consumesOptimizationRecommendedEventIntoUserInboxWhenUserPreferenceIsActive() {
+    void consumesLimitExceededEventIntoUserInboxWhenUserPreferenceIsActive() {
         var defaults = new NotificationContextDefaults("u_demo_001", "t_demo");
         var internalNotificationRepository = new InMemoryInternalNotificationRepository();
         var service = new NotificationEventConsumerService(
@@ -60,27 +60,40 @@ class NotificationEventConsumerServiceTest {
                 internalNotificationRepository
         );
 
-        int persistedCount = service.consume(new OptimizationRecommendedEvent(
-                "req_opt_001",
+        int persistedCount = service.consume(new LimitExceededEvent(
+                "req_limit_001",
                 "u_demo_001",
-                "",
+                "t_demo",
                 "svc_doc_summary",
-                "gpt-4o-mini",
-                "gpt-4.1-mini",
-                "lower_cost_similar_task",
+                "wf_monthly_report",
+                "DAILY_TOKEN",
+                "10000",
+                "12550",
                 Instant.parse("2026-03-20T10:20:30Z")
         ));
 
-        assertThat(persistedCount).isEqualTo(1);
+        assertThat(persistedCount).isEqualTo(2);
         assertThat(internalNotificationRepository.findByContext("u_demo_001", "t_demo"))
-                .singleElement()
-                .satisfies(notification -> {
-                    assertThat(notification.eventType()).isEqualTo("optimization.recommended");
-                    assertThat(notification.recipientType()).isEqualTo("user");
-                    assertThat(notification.recipientId()).isEqualTo("u_demo_001");
-                    assertThat(notification.channel()).isEqualTo(NotificationChannel.USER_INBOX);
-                    assertThat(notification.message()).contains("gpt-4.1-mini");
-                });
+                .extracting(
+                        notification -> notification.eventType(),
+                        notification -> notification.recipientType(),
+                        notification -> notification.recipientId(),
+                        notification -> notification.channel()
+                )
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple(
+                                "limit.exceeded",
+                                "user",
+                                "u_demo_001",
+                                NotificationChannel.USER_INBOX
+                        ),
+                        org.assertj.core.groups.Tuple.tuple(
+                                "limit.exceeded",
+                                "team",
+                                "t_demo",
+                                NotificationChannel.TEAM_DIGEST
+                        )
+                );
     }
 
     @Test
@@ -99,7 +112,7 @@ class NotificationEventConsumerServiceTest {
                 "wf_monthly_report",
                 "gpt-4o-mini",
                 "KRW",
-                new BigDecimal("231.55"),
+                new BigDecimal("1231.55"),
                 Instant.parse("2026-03-20T10:25:30Z")
         );
 
@@ -135,8 +148,33 @@ class NotificationEventConsumerServiceTest {
                 "wf_monthly_report",
                 "gpt-4o-mini",
                 "KRW",
-                new BigDecimal("99.10"),
+                new BigDecimal("1099.10"),
                 Instant.parse("2026-03-20T10:30:30Z")
+        ));
+
+        assertThat(persistedCount).isZero();
+        assertThat(internalNotificationRepository.findByContext("u_demo_001", "t_demo")).isEmpty();
+    }
+
+    @Test
+    void ignoresLowCostCalculatedEventsBelowAlertThreshold() {
+        var defaults = new NotificationContextDefaults("u_demo_001", "t_demo");
+        var internalNotificationRepository = new InMemoryInternalNotificationRepository();
+        var service = new NotificationEventConsumerService(
+                new InMemoryNotificationPreferencesRepository(defaults),
+                internalNotificationRepository
+        );
+
+        int persistedCount = service.consume(new CostCalculatedEvent(
+                "req_cost_004",
+                "u_demo_001",
+                "t_demo",
+                "svc_doc_summary",
+                "wf_monthly_report",
+                "gpt-4o-mini",
+                "KRW",
+                new BigDecimal("184.23"),
+                Instant.parse("2026-03-20T10:31:30Z")
         ));
 
         assertThat(persistedCount).isZero();

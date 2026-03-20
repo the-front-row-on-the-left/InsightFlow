@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import com.insightflow.notification.config.NotificationContextDefaults;
 import com.insightflow.notification.domain.CostCalculatedEvent;
-import com.insightflow.notification.domain.OptimizationRecommendedEvent;
+import com.insightflow.notification.domain.LimitExceededEvent;
 import com.insightflow.notification.repository.InMemoryInternalNotificationRepository;
 import com.insightflow.notification.repository.InMemoryNotificationPreferencesRepository;
 import java.math.BigDecimal;
@@ -30,9 +30,9 @@ class NotificationQueryServiceTest {
                         com.insightflow.notification.dto.NotificationSubscription::status
                 )
                 .containsExactly(
-                        tuple("optimization.recommended", "team_digest", "active"),
+                        tuple("limit.exceeded", "team_digest", "active"),
                         tuple("cost.calculated", "team_digest", "active"),
-                        tuple("optimization.recommended", "user_inbox", "active")
+                        tuple("limit.exceeded", "user_inbox", "active")
                 );
     }
 
@@ -56,17 +56,18 @@ class NotificationQueryServiceTest {
                 "wf_monthly_report",
                 "gpt-4o-mini",
                 "KRW",
-                new BigDecimal("184.23"),
+                new BigDecimal("1184.23"),
                 Instant.parse("2026-03-20T10:15:30Z")
         ));
-        consumerService.consume(new OptimizationRecommendedEvent(
-                "req_opt_001",
+        consumerService.consume(new LimitExceededEvent(
+                "req_limit_001",
                 "u_demo_001",
-                "",
+                "t_demo",
                 "svc_doc_summary",
-                "gpt-4o-mini",
-                "gpt-4.1-mini",
-                "lower_cost_similar_task",
+                "wf_monthly_report",
+                "DAILY_TOKEN",
+                "10000",
+                "12550",
                 Instant.parse("2026-03-20T10:20:30Z")
         ));
 
@@ -77,8 +78,9 @@ class NotificationQueryServiceTest {
                         com.insightflow.notification.dto.InternalNotificationResponse::recipientId,
                         com.insightflow.notification.dto.InternalNotificationResponse::channel
                 )
-                .containsExactly(
-                        tuple("optimization.recommended", "user", "u_demo_001", "user_inbox"),
+                .contains(
+                        tuple("limit.exceeded", "user", "u_demo_001", "user_inbox"),
+                        tuple("limit.exceeded", "team", "t_demo", "team_digest"),
                         tuple("cost.calculated", "team", "t_demo", "team_digest")
                 );
     }

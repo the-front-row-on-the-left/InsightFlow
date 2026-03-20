@@ -20,4 +20,4 @@ insightflow:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     topics:
       cost-calculated: ${COST_CALCULATED_TOPIC:cost.calculated}
-      optimization-recommended: ${OPTIMIZATION_RECOMMENDED_TOPIC:optimization.recommended}
+      limit-exceeded: ${LIMIT_EXCEEDED_TOPIC:limit.exceeded}

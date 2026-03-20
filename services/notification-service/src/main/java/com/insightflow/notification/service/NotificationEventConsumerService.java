@@ -3,16 +3,19 @@ package com.insightflow.notification.service;
 import com.insightflow.notification.domain.AnalyticsNotificationEvent;
 import com.insightflow.notification.domain.CostCalculatedEvent;
 import com.insightflow.notification.domain.InternalNotification;
+import com.insightflow.notification.domain.LimitExceededEvent;
 import com.insightflow.notification.domain.NotificationChannel;
 import com.insightflow.notification.domain.NotificationPreferences;
 import com.insightflow.notification.domain.NotificationSubscriptionPreference;
-import com.insightflow.notification.domain.OptimizationRecommendedEvent;
 import com.insightflow.notification.repository.InternalNotificationRepository;
 import com.insightflow.notification.repository.NotificationPreferencesRepository;
+import java.math.BigDecimal;
 import org.springframework.stereotype.Service;
 
 @Service
 public class NotificationEventConsumerService {
+
+    private static final BigDecimal COST_ALERT_THRESHOLD = new BigDecimal("1000.00");
 
     private final NotificationPreferencesRepository notificationPreferencesRepository;
     private final InternalNotificationRepository internalNotificationRepository;
@@ -26,10 +29,13 @@ public class NotificationEventConsumerService {
     }
 
     public int consume(CostCalculatedEvent event) {
+        if (!isCostAlert(event)) {
+            return 0;
+        }
         return consumeEvent(event);
     }
 
-    public int consume(OptimizationRecommendedEvent event) {
+    public int consume(LimitExceededEvent event) {
         return consumeEvent(event);
     }
 
@@ -97,9 +103,8 @@ public class NotificationEventConsumerService {
 
     private String titleFor(AnalyticsNotificationEvent event) {
         return switch (event.eventType()) {
-            case "cost.calculated" -> "Cost calculated for " + valueOrFallback(event.serviceId(), "unknown-service");
-            case "optimization.recommended" ->
-                    "Optimization recommendation ready for " + valueOrFallback(event.serviceId(), "unknown-service");
+            case "cost.calculated" -> "Cost alert for " + valueOrFallback(event.serviceId(), "unknown-service");
+            case "limit.exceeded" -> "Limit exceeded for " + valueOrFallback(event.serviceId(), "unknown-service");
             default -> "Analytics notification";
         };
     }
@@ -108,7 +113,7 @@ public class NotificationEventConsumerService {
         if (event instanceof CostCalculatedEvent costCalculatedEvent) {
             return "Request "
                     + costCalculatedEvent.requestId()
-                    + " cost "
+                    + " exceeded cost threshold at "
                     + costCalculatedEvent.currency()
                     + " "
                     + costCalculatedEvent.cost().toPlainString()
@@ -116,13 +121,15 @@ public class NotificationEventConsumerService {
                     + costCalculatedEvent.model();
         }
 
-        if (event instanceof OptimizationRecommendedEvent optimizationRecommendedEvent) {
-            return "Switch from "
-                    + optimizationRecommendedEvent.currentModel()
-                    + " to "
-                    + optimizationRecommendedEvent.recommendedModel()
-                    + " because "
-                    + optimizationRecommendedEvent.reason();
+        if (event instanceof LimitExceededEvent limitExceededEvent) {
+            return "Request "
+                    + limitExceededEvent.requestId()
+                    + " exceeded "
+                    + limitExceededEvent.limitType()
+                    + " threshold "
+                    + limitExceededEvent.threshold()
+                    + " with observed value "
+                    + limitExceededEvent.observedValue();
         }
 
         return "New analytics notification for request " + event.requestId();
@@ -134,6 +141,10 @@ public class NotificationEventConsumerService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private boolean isCostAlert(CostCalculatedEvent event) {
+        return event.cost().compareTo(COST_ALERT_THRESHOLD) >= 0;
     }
 
     private record Recipient(String type, String id) {

@@ -13,7 +13,7 @@ public class InMemoryNotificationPreferencesRepository implements NotificationPr
 
     private static final List<NotificationSubscriptionPreference> DEFAULT_SUBSCRIPTIONS = List.of(
             new NotificationSubscriptionPreference(
-                    "optimization.recommended",
+                    "limit.exceeded",
                     NotificationChannel.TEAM_DIGEST,
                     NotificationPreferenceStatus.ACTIVE
             ),
@@ -23,7 +23,7 @@ public class InMemoryNotificationPreferencesRepository implements NotificationPr
                     NotificationPreferenceStatus.ACTIVE
             ),
             new NotificationSubscriptionPreference(
-                    "optimization.recommended",
+                    "limit.exceeded",
                     NotificationChannel.USER_INBOX,
                     NotificationPreferenceStatus.ACTIVE
             )
