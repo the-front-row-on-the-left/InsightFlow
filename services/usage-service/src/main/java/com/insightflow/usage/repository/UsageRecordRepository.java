@@ -9,4 +9,6 @@ public interface UsageRecordRepository {
     List<UsageRecord> findAll();
 
     void save(TrackedUsageEvent trackedUsageEvent);
+
+    boolean existsByRequestId(String requestId);
 }

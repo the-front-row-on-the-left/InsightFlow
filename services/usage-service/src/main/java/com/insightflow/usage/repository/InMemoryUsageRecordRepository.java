@@ -166,4 +166,9 @@ public class InMemoryUsageRecordRepository implements UsageRecordRepository {
                 trackedUsageEvent.occurredAt()
         ));
     }
+
+    @Override
+    public boolean existsByRequestId(String requestId) {
+        return records.stream().anyMatch(record -> record.requestId().equals(requestId));
+    }
 }
