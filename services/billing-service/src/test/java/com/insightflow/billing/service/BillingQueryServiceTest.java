@@ -3,17 +3,26 @@ package com.insightflow.billing.service;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.insightflow.billing.config.BillingSeedProperties;
+import com.insightflow.billing.domain.BillingRecord;
+import com.insightflow.billing.domain.BillingRequestUsage;
+import com.insightflow.billing.domain.PriceTableEntry;
 import com.insightflow.billing.dto.BillingScopeResponse;
 import com.insightflow.billing.dto.PricingTableResponse;
+import com.insightflow.billing.repository.BillingRecordRepository;
+import com.insightflow.billing.repository.PricingTableRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class BillingQueryServiceTest {
 
     private final BillingQueryService billingQueryService = new BillingQueryService(
-            new BillingDataService(seedProperties(), new BillingCostCalculator())
+            new BillingDataService(
+                    new InMemoryPricingTableRepository(seedProperties()),
+                    new InMemoryBillingRecordRepository(seedProperties(), new BillingCostCalculator())
+            )
     );
 
     @Test
@@ -169,5 +178,80 @@ class BillingQueryServiceTest {
                         )
                 )
         );
+    }
+
+    private static final class InMemoryPricingTableRepository implements PricingTableRepository {
+
+        private final List<PriceTableEntry> entries;
+
+        private InMemoryPricingTableRepository(BillingSeedProperties seedProperties) {
+            this.entries = seedProperties.priceTables().stream()
+                    .map(BillingSeedProperties.PriceTableSeed::toPriceTableEntry)
+                    .sorted(Comparator.comparing(PriceTableEntry::effectiveFrom))
+                    .toList();
+        }
+
+        @Override
+        public List<PriceTableEntry> findAll() {
+            return entries;
+        }
+
+        @Override
+        public List<PriceTableEntry> findByVersion(String version) {
+            return entries.stream()
+                    .filter(entry -> entry.priceTableVersion().equals(version))
+                    .toList();
+        }
+
+        @Override
+        public void saveAll(List<PriceTableEntry> entries) {
+            throw new UnsupportedOperationException("Test repository is read-only");
+        }
+
+        @Override
+        public long count() {
+            return entries.size();
+        }
+    }
+
+    private static final class InMemoryBillingRecordRepository implements BillingRecordRepository {
+
+        private final List<BillingRecord> records;
+
+        private InMemoryBillingRecordRepository(BillingSeedProperties seedProperties, BillingCostCalculator calculator) {
+            List<PriceTableEntry> priceTableEntries = seedProperties.priceTables().stream()
+                    .map(BillingSeedProperties.PriceTableSeed::toPriceTableEntry)
+                    .sorted(Comparator.comparing(PriceTableEntry::effectiveFrom))
+                    .toList();
+            this.records = seedProperties.requests().stream()
+                    .map(BillingSeedProperties.RequestSeed::toBillingRequestUsage)
+                    .map(usage -> calculator.calculate(usage, resolvePriceTableEntry(priceTableEntries, usage)))
+                    .sorted(Comparator.comparing(BillingRecord::occurredAt).reversed())
+                    .toList();
+        }
+
+        @Override
+        public List<BillingRecord> findAll() {
+            return records;
+        }
+
+        @Override
+        public void save(String eventId, BillingRecord billingRecord) {
+            throw new UnsupportedOperationException("Test repository is read-only");
+        }
+
+        @Override
+        public boolean existsByRequestId(String requestId) {
+            return records.stream().anyMatch(record -> record.requestId().equals(requestId));
+        }
+
+        private PriceTableEntry resolvePriceTableEntry(List<PriceTableEntry> priceTableEntries, BillingRequestUsage usage) {
+            return priceTableEntries.stream()
+                    .filter(entry -> entry.serviceId().equals(usage.serviceId()))
+                    .filter(entry -> entry.model().equals(usage.model()))
+                    .filter(entry -> entry.isActiveFor(usage.occurredAt()))
+                    .max(Comparator.comparing(PriceTableEntry::effectiveFrom))
+                    .orElseThrow();
+        }
     }
 }

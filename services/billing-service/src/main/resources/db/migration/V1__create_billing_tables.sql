@@ -1,0 +1,40 @@
+create table if not exists pricing_tables (
+    price_table_version varchar(100) not null,
+    service_id varchar(100) not null,
+    model varchar(100) not null,
+    pricing_model varchar(32) not null,
+    currency varchar(16) not null,
+    unit_price_input numeric(18, 4) not null,
+    unit_price_output numeric(18, 4) not null,
+    unit_price_request numeric(18, 4) not null,
+    effective_from timestamp with time zone not null,
+    effective_to timestamp with time zone,
+    status varchar(32) not null,
+    created_at timestamp with time zone not null default current_timestamp,
+    primary key (price_table_version, service_id, model, effective_from)
+);
+
+create table if not exists billing_records (
+    request_id varchar(100) primary key,
+    event_id varchar(100) not null unique,
+    user_id varchar(100) not null,
+    team_id varchar(100) not null,
+    workflow_id varchar(100) not null,
+    service_id varchar(100) not null,
+    model varchar(100) not null,
+    status varchar(32) not null,
+    pricing_model varchar(32) not null,
+    currency varchar(16) not null,
+    price_table_version varchar(100) not null,
+    prompt_tokens integer not null,
+    completion_tokens integer not null,
+    total_tokens integer not null,
+    billable boolean not null,
+    input_unit_price numeric(18, 4) not null,
+    output_unit_price numeric(18, 4) not null,
+    request_unit_price numeric(18, 4) not null,
+    cost_before_rounding numeric(18, 4) not null,
+    total_cost numeric(18, 2) not null,
+    occurred_at timestamp with time zone not null,
+    calculated_at timestamp with time zone not null default current_timestamp
+);
