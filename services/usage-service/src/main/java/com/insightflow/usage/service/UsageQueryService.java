@@ -1,52 +1,141 @@
 package com.insightflow.usage.service;
 
+import com.insightflow.usage.domain.UsageQuery;
+import com.insightflow.usage.domain.UsageRecord;
+import com.insightflow.usage.domain.UsageScopeType;
 import com.insightflow.usage.dto.UsageItem;
 import com.insightflow.usage.dto.UsagePeriod;
 import com.insightflow.usage.dto.UsageScopeResponse;
 import com.insightflow.usage.dto.UsageSummary;
+import com.insightflow.usage.repository.UsageRecordRepository;
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
+import java.util.function.ToIntFunction;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UsageQueryService {
 
+    private static final String DEFAULT_UNIT = "day";
+
+    private final UsageRecordRepository usageRecordRepository;
+
+    public UsageQueryService(UsageRecordRepository usageRecordRepository) {
+        this.usageRecordRepository = usageRecordRepository;
+    }
+
     public UsageScopeResponse getUserUsage(String userId) {
-        return new UsageScopeResponse(
-                "user",
-                userId,
-                new UsagePeriod("2026-03-14", "2026-03-20", "day"),
-                new UsageSummary(3, 4460, 1486, 912),
-                List.of(
-                        new UsageItem("req_u_001", "svc_doc_summary", "gpt-4o-mini", "SUCCEEDED", 1220, 410),
-                        new UsageItem("req_u_002", "svc_doc_summary", "gpt-4o-mini", "SUCCEEDED", 1840, 365),
-                        new UsageItem("req_u_003", "svc_report_generator", "gpt-4.1-mini", "FAILED", 1400, 137)
-                )
-        );
+        return getUserUsage(userId, null, null, DEFAULT_UNIT);
+    }
+
+    public UsageScopeResponse getUserUsage(String userId, LocalDate from, LocalDate to, String unit) {
+        return getUsage(new UsageQuery(UsageScopeType.USER, userId, from, to, normalizeUnit(unit)));
     }
 
     public UsageScopeResponse getTeamUsage(String teamId) {
-        return new UsageScopeResponse(
-                "team",
-                teamId,
-                new UsagePeriod("2026-03-14", "2026-03-20", "day"),
-                new UsageSummary(9, 13840, 1538, 1284),
-                List.of(
-                        new UsageItem("req_t_001", "svc_doc_summary", "gpt-4o-mini", "SUCCEEDED", 1220, 410),
-                        new UsageItem("req_t_002", "svc_report_generator", "gpt-4.1-mini", "SUCCEEDED", 2940, 520)
-                )
-        );
+        return getTeamUsage(teamId, null, null, DEFAULT_UNIT);
+    }
+
+    public UsageScopeResponse getTeamUsage(String teamId, LocalDate from, LocalDate to, String unit) {
+        return getUsage(new UsageQuery(UsageScopeType.TEAM, teamId, from, to, normalizeUnit(unit)));
     }
 
     public UsageScopeResponse getServiceUsage(String serviceId) {
+        return getServiceUsage(serviceId, null, null, DEFAULT_UNIT);
+    }
+
+    public UsageScopeResponse getServiceUsage(String serviceId, LocalDate from, LocalDate to, String unit) {
+        return getUsage(new UsageQuery(UsageScopeType.SERVICE, serviceId, from, to, normalizeUnit(unit)));
+    }
+
+    private UsageScopeResponse getUsage(UsageQuery query) {
+        List<UsageRecord> allRecords = usageRecordRepository.findAll();
+        LocalDate defaultFrom = allRecords.stream()
+                .map(UsageRecord::requestedOn)
+                .min(LocalDate::compareTo)
+                .orElse(LocalDate.now());
+        LocalDate defaultTo = allRecords.stream()
+                .map(UsageRecord::requestedOn)
+                .max(LocalDate::compareTo)
+                .orElse(defaultFrom);
+        LocalDate resolvedFrom = query.from() != null ? query.from() : defaultFrom;
+        LocalDate resolvedTo = query.to() != null ? query.to() : defaultTo;
+        if (resolvedTo.isBefore(resolvedFrom)) {
+            LocalDate swapped = resolvedFrom;
+            resolvedFrom = resolvedTo;
+            resolvedTo = swapped;
+        }
+        LocalDate finalResolvedFrom = resolvedFrom;
+        LocalDate finalResolvedTo = resolvedTo;
+
+        List<UsageRecord> filteredRecords = allRecords.stream()
+                .filter(record -> query.scopeType().matches(record, query.scopeId()))
+                .filter(record -> !record.requestedOn().isBefore(finalResolvedFrom))
+                .filter(record -> !record.requestedOn().isAfter(finalResolvedTo))
+                .sorted(Comparator.comparing(UsageRecord::requestedAt).reversed())
+                .toList();
+
         return new UsageScopeResponse(
-                "service",
-                serviceId,
-                new UsagePeriod("2026-03-14", "2026-03-20", "day"),
-                new UsageSummary(12, 18420, 1535, 1014),
-                List.of(
-                        new UsageItem("req_s_001", serviceId, "gpt-4o-mini", "SUCCEEDED", 980, 240),
-                        new UsageItem("req_s_002", serviceId, "gpt-4o-mini", "SUCCEEDED", 1560, 318)
-                )
+                query.scopeType().apiValue(),
+                query.scopeId(),
+                new UsagePeriod(finalResolvedFrom.toString(), finalResolvedTo.toString(), query.unit()),
+                buildSummary(filteredRecords),
+                filteredRecords.stream()
+                        .map(this::toUsageItem)
+                        .toList()
         );
+    }
+
+    private UsageSummary buildSummary(List<UsageRecord> filteredRecords) {
+        return new UsageSummary(
+                filteredRecords.size(),
+                filteredRecords.stream().mapToInt(UsageRecord::totalTokens).sum(),
+                average(filteredRecords, UsageRecord::totalTokens),
+                average(filteredRecords, UsageRecord::latencyMs),
+                countByStatus(filteredRecords, "SUCCEEDED"),
+                countByStatus(filteredRecords, "FAILED"),
+                countByStatus(filteredRecords, "BLOCKED")
+        );
+    }
+
+    private UsageItem toUsageItem(UsageRecord record) {
+        return new UsageItem(
+                record.requestId(),
+                record.serviceId(),
+                record.workflowId(),
+                record.model(),
+                record.status(),
+                record.policyResult(),
+                record.limitResult(),
+                record.promptTokens(),
+                record.completionTokens(),
+                record.totalTokens(),
+                record.latencyMs(),
+                record.requestedAt().toString()
+        );
+    }
+
+    private int average(List<UsageRecord> filteredRecords, ToIntFunction<UsageRecord> valueExtractor) {
+        if (filteredRecords.isEmpty()) {
+            return 0;
+        }
+        return (int) Math.round(filteredRecords.stream()
+                .mapToInt(valueExtractor)
+                .average()
+                .orElse(0));
+    }
+
+    private int countByStatus(List<UsageRecord> filteredRecords, String status) {
+        return (int) filteredRecords.stream()
+                .filter(record -> status.equals(record.status()))
+                .count();
+    }
+
+    private String normalizeUnit(String unit) {
+        if (unit == null || unit.isBlank()) {
+            return DEFAULT_UNIT;
+        }
+        return unit;
     }
 }

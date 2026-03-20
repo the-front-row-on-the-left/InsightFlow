@@ -10,6 +10,12 @@ public record UsageSummary(
         @JsonProperty("avg_tokens_per_request")
         int avgTokensPerRequest,
         @JsonProperty("avg_latency_ms")
-        int avgLatencyMs
+        int avgLatencyMs,
+        @JsonProperty("succeeded_requests")
+        int succeededRequests,
+        @JsonProperty("failed_requests")
+        int failedRequests,
+        @JsonProperty("blocked_requests")
+        int blockedRequests
 ) {
 }
