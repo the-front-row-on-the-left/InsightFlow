@@ -1,6 +1,11 @@
 spring:
   application:
     name: policy-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 server:
   port: ${POLICY_PORT:8081}
@@ -16,7 +21,14 @@ insightflow:
   defaults:
     user-id: ${DEFAULT_USER_ID:u_demo_001}
     team-id: ${DEFAULT_TEAM_ID:t_demo}
+    user-role: ${DEFAULT_USER_ROLE:platform_user}
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     topics:
       policy-checked: ${POLICY_CHECKED_TOPIC:policy.checked}
+  policy:
+    team-model-deny:
+      team-id: ${POLICY_BLOCKED_TEAM_ID:t_blocked}
+      model: ${POLICY_BLOCKED_MODEL:gpt-4o}
+    team-monthly-budget:
+      blocked-team-id: ${POLICY_BUDGET_BLOCKED_TEAM_ID:t_budget_blocked}
+    service-allowlist: ${POLICY_ALLOWED_SERVICES:svc_doc_summary,svc_report_generator}

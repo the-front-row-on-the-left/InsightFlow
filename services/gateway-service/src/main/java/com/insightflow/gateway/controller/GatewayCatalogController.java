@@ -1,7 +1,6 @@
-package com.insightflow.gateway;
+package com.insightflow.gateway.controller;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -15,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-class GatewayContractStubController {
+class GatewayCatalogController {
 
     @GetMapping("/api/catalog/services")
     public ApiResponse<List<ServiceCatalogItem>> getCatalogServices(@RequestParam(required = false) String category,
@@ -34,8 +33,8 @@ class GatewayContractStubController {
                 "Sample Service",
                 "analysis",
                 "per_token",
-                List.of("gpt-4o-mini"),
-                "Basic contract stub for parallel development."
+                List.of("gpt-4o-mini", "gpt-4.1-mini"),
+                "Gateway-backed catalog stub for platform integration."
         ));
     }
 
@@ -54,26 +53,6 @@ class GatewayContractStubController {
                 workflowId,
                 "Sample Workflow",
                 List.of(new WorkflowStep("svc_doc_summary"), new WorkflowStep("svc_report_generator"))
-        ));
-    }
-
-    @PostMapping("/api/executions")
-    public ApiResponse<ExecutionCreateResponse> createExecution(@RequestBody ExecutionCreateRequest request) {
-        return ApiResponses.ok(new ExecutionCreateResponse(
-                "exe_" + UUID.randomUUID(),
-                request.serviceId(),
-                request.workflowId(),
-                "PENDING",
-                new OrchestrationTargets("policy-service", "rate-limit-service")
-        ));
-    }
-
-    @GetMapping("/api/executions/{executionId}")
-    public ApiResponse<ExecutionDetailResponse> getExecution(@PathVariable String executionId) {
-        return ApiResponses.ok(new ExecutionDetailResponse(
-                executionId,
-                "PENDING",
-                Map.of("message", "Execution stub created for team integration.")
         ));
     }
 
@@ -119,43 +98,4 @@ class GatewayContractStubController {
             String serviceId
     ) {
     }
-
-    record ExecutionCreateRequest(
-            @JsonProperty("service_id")
-            String serviceId,
-            @JsonProperty("workflow_id")
-            String workflowId,
-            Map<String, Object> input,
-            String model
-    ) {
-    }
-
-    record ExecutionCreateResponse(
-            @JsonProperty("execution_id")
-            String executionId,
-            @JsonProperty("service_id")
-            String serviceId,
-            @JsonProperty("workflow_id")
-            String workflowId,
-            String status,
-            @JsonProperty("orchestration_targets")
-            OrchestrationTargets orchestrationTargets
-        ) {
-    }
-
-    record OrchestrationTargets(
-            String policy,
-            @JsonProperty("rate_limit")
-            String rateLimit
-    ) {
-    }
-
-    record ExecutionDetailResponse(
-            @JsonProperty("execution_id")
-            String executionId,
-            String status,
-            Map<String, Object> result
-    ) {
-    }
-
 }

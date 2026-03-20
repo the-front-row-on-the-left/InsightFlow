@@ -1,0 +1,7 @@
+.git
+.gradle
+**/build
+apps
+node_modules
+.DS_Store
+*.log

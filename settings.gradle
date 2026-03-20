@@ -2,6 +2,7 @@ rootProject.name = 'insightflow'
 
 include(
     ':shared:common-web',
+    ':services:ai-ops-core-service',
     ':services:gateway-service',
     ':services:policy-service',
     ':services:rate-limit-service',

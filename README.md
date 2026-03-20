@@ -7,6 +7,7 @@
 - `apps/ai-platform-ui`: Vue 3 + Vite 기본 UI
 - `shared/common-web`: 백엔드 공통 응답 포맷, `request_id` 처리, 이벤트 envelope
 - `services/gateway-service`: 실행 진입점용 Gateway 골격
+- `services/ai-ops-core-service`: 실행 중재/오케스트레이션 전용 서비스
 - `services/policy-service`: 정책 평가 전용 서비스 골격
 - `services/rate-limit-service`: 요청 제한 검사 전용 서비스 골격
 - `services/usage-service`: Usage 조회 골격
@@ -16,9 +17,10 @@
 
 현재 범위
 
-- 기능 구현은 넣지 않았습니다.
-- 각 서비스는 공통 응답 포맷과 `X-Request-Id`를 사용합니다.
-- Gateway는 외부 `/api/**` 진입점 오케스트레이션 역할만 먼저 잡아둔 상태입니다.
+- Gateway, AI Ops Core, Policy, Rate Limit은 문서 기준 MVP 흐름이 동작합니다.
+- `POST /api/executions`는 Gateway를 통과한 뒤 AI Ops Core에서 Policy 검사, Rate Limit 검사, mock provider 실행을 거칩니다.
+- Rate Limit은 기본적으로 Redis 카운터를 사용합니다.
+- `ai.requested`, `policy.checked`, `limit.applied`는 Kafka 토픽 발행을 기준으로 구성돼 있습니다.
 - UI는 문서 기준 서비스 목록과 다음 작업 안내만 보여줍니다.
 
 실행 기준
@@ -38,13 +40,23 @@
 
 1. `.env.example`를 참고해 환경값 준비
 2. `docker compose up -d`
-3. `gradle build`
-4. 프론트에서 `npm install && npm run dev`
+3. `docker compose up -d --build`
+4. 필요하면 헬스체크와 API 호출로 확인
+5. 프론트에서 `npm install && npm run dev`
+
+서비스를 컨테이너로 함께 실행하려면
+
+- 인프라 + B 서비스까지 한 번에: `docker compose up -d --build`
+- 헬스 확인
+  - `curl http://localhost:8080/health`
+  - `curl http://localhost:8087/health`
+  - `curl http://localhost:8081/health`
+  - `curl http://localhost:8082/health`
 
 팀 역할 기준
 
 - A: `apps/ai-platform-ui`
-- B: `services/gateway-service`, `services/policy-service`, `services/rate-limit-service`
+- B: `services/gateway-service`, `services/ai-ops-core-service`, `services/policy-service`, `services/rate-limit-service`
 - C: `services/usage-service`, `services/billing-service`, `services/notification-service`, `services/recommendation-service`
 
 공통 계약 출처
@@ -56,6 +68,6 @@
 
 예상 다음 작업
 
-1. Gateway에서 Policy/Rate Limit 호출 오케스트레이션 추가
+1. AI Ops Core와 Analytics 간 이벤트 체인 보강
 2. Usage/Billing/Notification/Recommendation 이벤트 소비 스텁 확장
 3. UI를 Gateway 실 API와 연결

@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@SpringBootApplication(scanBasePackages = "com.insightflow")
+@SpringBootApplication(scanBasePackages = {"com.insightflow.recommendation", "com.insightflow.common"})
 public class RecommendationServiceApplication {
 
     public static void main(String[] args) {

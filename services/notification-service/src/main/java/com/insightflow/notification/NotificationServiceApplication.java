@@ -10,7 +10,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@SpringBootApplication(scanBasePackages = "com.insightflow")
+@SpringBootApplication(scanBasePackages = {"com.insightflow.notification", "com.insightflow.common"})
 public class NotificationServiceApplication {
 
     public static void main(String[] args) {

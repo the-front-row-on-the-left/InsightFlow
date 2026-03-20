@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: ai-ops-core-service
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+server:
+  port: ${AI_OPS_CORE_PORT:8087}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+insightflow:
+  environment: ${APP_ENVIRONMENT:local}
+  defaults:
+    user-id: ${DEFAULT_USER_ID:u_demo_001}
+    team-id: ${DEFAULT_TEAM_ID:t_demo}
+    user-role: ${DEFAULT_USER_ROLE:platform_user}
+  upstream:
+    policy-service-base-url: ${POLICY_SERVICE_BASE_URL:http://localhost:8081}
+    rate-limit-service-base-url: ${RATE_LIMIT_SERVICE_BASE_URL:http://localhost:8082}
+  execution:
+    default-workflow-id: ${DEFAULT_WORKFLOW_ID:wf_ad_hoc}
+  kafka:
+    topics:
+      ai-requested: ${AI_REQUESTED_TOPIC:ai.requested}
