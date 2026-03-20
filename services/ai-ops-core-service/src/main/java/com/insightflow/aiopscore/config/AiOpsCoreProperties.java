@@ -10,15 +10,18 @@ public class AiOpsCoreProperties {
     private final String rateLimitServiceBaseUrl;
     private final String defaultWorkflowId;
     private final String aiRequestedTopic;
+    private final String aiCompletedTopic;
 
     AiOpsCoreProperties(@Value("${insightflow.upstream.policy-service-base-url:http://localhost:8081}") String policyServiceBaseUrl,
                         @Value("${insightflow.upstream.rate-limit-service-base-url:http://localhost:8082}") String rateLimitServiceBaseUrl,
                         @Value("${insightflow.execution.default-workflow-id:wf_ad_hoc}") String defaultWorkflowId,
-                        @Value("${insightflow.kafka.topics.ai-requested:ai.requested}") String aiRequestedTopic) {
+                        @Value("${insightflow.kafka.topics.ai-requested:ai.requested}") String aiRequestedTopic,
+                        @Value("${insightflow.kafka.topics.ai-completed:ai.completed}") String aiCompletedTopic) {
         this.policyServiceBaseUrl = policyServiceBaseUrl;
         this.rateLimitServiceBaseUrl = rateLimitServiceBaseUrl;
         this.defaultWorkflowId = defaultWorkflowId;
         this.aiRequestedTopic = aiRequestedTopic;
+        this.aiCompletedTopic = aiCompletedTopic;
     }
 
     public String policyServiceBaseUrl() {
@@ -35,5 +38,9 @@ public class AiOpsCoreProperties {
 
     public String aiRequestedTopic() {
         return aiRequestedTopic;
+    }
+
+    public String aiCompletedTopic() {
+        return aiCompletedTopic;
     }
 }

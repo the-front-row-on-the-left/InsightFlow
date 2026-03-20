@@ -2,6 +2,8 @@ package com.insightflow.gateway.client;
 
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.insightflow.common.api.ApiResponse;
 import com.insightflow.common.error.BusinessException;
 import com.insightflow.common.error.ErrorCode;
@@ -15,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 @Component
 public class AiOpsCoreServiceClient {
@@ -31,10 +34,14 @@ public class AiOpsCoreServiceClient {
 
     private final RestClient restClient;
     private final GatewayProperties properties;
+    private final ObjectMapper objectMapper;
 
-    AiOpsCoreServiceClient(RestClient restClient, GatewayProperties properties) {
+    AiOpsCoreServiceClient(RestClient restClient,
+                           GatewayProperties properties,
+                           ObjectMapper objectMapper) {
         this.restClient = restClient;
         this.properties = properties;
+        this.objectMapper = objectMapper;
     }
 
     public ExecutionCreateResponse createExecution(ExecutionCreateRequest request,
@@ -59,6 +66,8 @@ public class AiOpsCoreServiceClient {
                         "AI Ops Core returned an empty response.");
             }
             return response.data();
+        } catch (RestClientResponseException exception) {
+            throw translateDownstreamException(exception);
         } catch (RestClientException exception) {
             throw new BusinessException(HttpStatus.BAD_GATEWAY, ErrorCode.DOWNSTREAM_SERVICE_ERROR,
                     "AI Ops Core service is unavailable.");
@@ -86,6 +95,8 @@ public class AiOpsCoreServiceClient {
                         "AI Ops Core returned an empty response.");
             }
             return response.data();
+        } catch (RestClientResponseException exception) {
+            throw translateDownstreamException(exception);
         } catch (RestClientException exception) {
             throw new BusinessException(HttpStatus.BAD_GATEWAY, ErrorCode.DOWNSTREAM_SERVICE_ERROR,
                     "AI Ops Core service is unavailable.");
@@ -112,9 +123,33 @@ public class AiOpsCoreServiceClient {
                         "AI Ops Core returned an empty response.");
             }
             return response.data();
+        } catch (RestClientResponseException exception) {
+            throw translateDownstreamException(exception);
         } catch (RestClientException exception) {
             throw new BusinessException(HttpStatus.BAD_GATEWAY, ErrorCode.DOWNSTREAM_SERVICE_ERROR,
                     "AI Ops Core service is unavailable.");
         }
+    }
+
+    private BusinessException translateDownstreamException(RestClientResponseException exception) {
+        HttpStatus status = HttpStatus.resolve(exception.getStatusCode().value());
+        if (status == null) {
+            status = HttpStatus.BAD_GATEWAY;
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(exception.getResponseBodyAsString());
+            JsonNode error = root.path("error");
+            String code = error.path("code").asText("");
+            String message = error.path("message").asText("");
+            if (!code.isBlank() && !message.isBlank()) {
+                return new BusinessException(status, ErrorCode.valueOf(code), message);
+            }
+        } catch (Exception ignored) {
+            // Fall through to generic downstream error mapping.
+        }
+
+        return new BusinessException(status, ErrorCode.DOWNSTREAM_SERVICE_ERROR,
+                "AI Ops Core request failed.");
     }
 }

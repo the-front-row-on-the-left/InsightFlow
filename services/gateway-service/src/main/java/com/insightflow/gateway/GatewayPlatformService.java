@@ -1,7 +1,10 @@
 package com.insightflow.gateway;
 
 import com.insightflow.common.error.ErrorCode;
+import com.insightflow.common.error.BusinessException;
 import com.insightflow.common.web.InsightRequestContextHolder;
+import com.insightflow.common.web.RequestContext;
+import com.insightflow.gateway.client.AiOpsCoreServiceClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -20,12 +23,15 @@ import java.util.concurrent.ConcurrentMap;
 class GatewayPlatformService {
 
     private final DocumentSearchEngine documentSearchEngine;
+    private final AiOpsCoreServiceClient aiOpsCoreServiceClient;
     private final ConcurrentMap<String, WorkflowRecord> workflows = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, ExecutionRecord> executions = new ConcurrentHashMap<>();
     private final Map<String, ServiceDefinition> serviceCatalog;
 
-    GatewayPlatformService(DocumentSearchEngine documentSearchEngine) {
+    GatewayPlatformService(DocumentSearchEngine documentSearchEngine,
+                           AiOpsCoreServiceClient aiOpsCoreServiceClient) {
         this.documentSearchEngine = documentSearchEngine;
+        this.aiOpsCoreServiceClient = aiOpsCoreServiceClient;
         this.serviceCatalog = buildServiceCatalog();
         WorkflowRecord defaultWorkflow = new WorkflowRecord(
                 "wf_template_doc_report",
@@ -107,7 +113,17 @@ class GatewayPlatformService {
 
         ExecutionErrorPayload triggeredError = detectTriggeredError(input);
         if (triggeredError != null) {
-            ExecutionRecord failure = failureRecord(executionId, request.service_id(), request.workflow_id(), requestId, input, createdAt, triggeredError);
+            ExecutionRecord failure = failureRecord(
+                    executionId,
+                    request.service_id(),
+                    request.workflow_id(),
+                    request.model(),
+                    request.workflow_id() != null && !request.workflow_id().isBlank() ? "gateway-workflow" : "gateway",
+                    requestId,
+                    input,
+                    createdAt,
+                    triggeredError
+            );
             executions.put(executionId, failure);
             throw asGatewayApiException(triggeredError);
         }
@@ -116,17 +132,55 @@ class GatewayPlatformService {
             ExecutionErrorPayload error = new ExecutionErrorPayload("INVALID_REQUEST", "service_id 또는 workflow_id 중 하나가 필요합니다.", Map.of(
                     "service_id", "service_id 또는 workflow_id를 지정하세요."
             ));
-            ExecutionRecord failure = failureRecord(executionId, request.service_id(), request.workflow_id(), requestId, input, createdAt, error);
+            ExecutionRecord failure = failureRecord(
+                    executionId,
+                    request.service_id(),
+                    request.workflow_id(),
+                    request.model(),
+                    "gateway",
+                    requestId,
+                    input,
+                    createdAt,
+                    error
+            );
             executions.put(executionId, failure);
             throw asGatewayApiException(error);
         }
 
-        ExecutionRecord execution = request.workflow_id() != null && !request.workflow_id().isBlank()
-                ? executeWorkflow(executionId, request, requestId, createdAt, input)
-                : executeSingleService(executionId, request, requestId, createdAt, input);
+        try {
+            ExecutionRecord execution = request.workflow_id() != null && !request.workflow_id().isBlank()
+                    ? executeWorkflow(executionId, request, requestId, createdAt, input)
+                    : executeSingleService(request, requestId);
 
-        executions.put(executionId, execution);
-        return execution.toCreateResponse();
+            executions.put(execution.execution_id(), execution);
+            return execution.toCreateResponse();
+        } catch (GatewayApiException exception) {
+            executions.put(executionId, failureRecord(
+                    executionId,
+                    request.service_id(),
+                    request.workflow_id(),
+                    request.model(),
+                    request.workflow_id() != null && !request.workflow_id().isBlank() ? "gateway-workflow" : "gateway",
+                    requestId,
+                    input,
+                    createdAt,
+                    toErrorPayload(exception)
+            ));
+            throw exception;
+        } catch (BusinessException exception) {
+            executions.put(executionId, failureRecord(
+                    executionId,
+                    request.service_id(),
+                    request.workflow_id(),
+                    request.model(),
+                    "ai-ops-core",
+                    requestId,
+                    input,
+                    createdAt,
+                    toErrorPayload(exception)
+            ));
+            throw exception;
+        }
     }
 
     ExecutionRecord getExecution(String executionId) {
@@ -137,16 +191,18 @@ class GatewayPlatformService {
         return execution;
     }
 
-    private ExecutionRecord executeSingleService(String executionId,
-                                                 ExecutionCreateRequest request,
-                                                 String requestId,
-                                                 String createdAt,
-                                                 Map<String, Object> input) {
-        requireService(request.service_id());
-        String serviceId = request.service_id();
+    List<ExecutionStreamItem> listExecutions() {
+        return executions.values().stream()
+                .sorted((left, right) -> right.created_at().compareTo(left.created_at()))
+                .map(this::toExecutionStreamItem)
+                .toList();
+    }
 
-        if ("svc_doc_search".equals(serviceId)) {
-            Object rawQuery = input.get("query");
+    private ExecutionRecord executeSingleService(ExecutionCreateRequest request,
+                                                 String requestId) {
+        requireService(request.service_id());
+        if ("svc_doc_search".equals(request.service_id())) {
+            Object rawQuery = request.input() == null ? null : request.input().get("query");
             if (rawQuery == null || rawQuery.toString().isBlank()) {
                 throw new GatewayApiException(
                         ErrorCode.INVALID_REQUEST,
@@ -154,29 +210,28 @@ class GatewayPlatformService {
                         "문서 검색에는 query 입력이 필요합니다."
                 );
             }
-
-            DocSearchPayload result = documentSearchEngine.search(rawQuery.toString(), Objects.toString(input.get("document_scope"), ""));
-            return successRecord(executionId, serviceId, null, requestId, input, createdAt, result, "completed", "available",
-                    "문서 검색 결과는 workflow 다음 step의 context로 재사용할 수 있습니다.");
         }
-
-        if ("svc_chat_assistant".equals(serviceId)) {
-            Map<String, Object> result = Map.of(
-                    "type", "chat_assistant",
-                    "answer", "질문 '" + Objects.toString(input.get("question"), "요청") + "'에 대한 mock 응답입니다.",
-                    "bullet_points", List.of("핵심 내용을 먼저 제시합니다.", "후속 액션을 간단히 정리합니다.", "워크플로우 재사용이 가능합니다.")
-            );
-            return successRecord(executionId, serviceId, null, requestId, input, createdAt, result, "estimated", "empty",
-                    "챗 어시스턴트는 이번 단계에서 mock 결과를 제공합니다.");
-        }
-
-        Map<String, Object> result = buildReportResult(
-                Objects.toString(input.get("topic"), "운영 보고서"),
-                Objects.toString(input.get("context"), "문서 검색 결과 없음"),
-                Objects.toString(input.get("format"), "executive_summary")
+        RequestContext requestContext = currentRequestContext();
+        com.insightflow.gateway.domain.ExecutionCreateResponse createResponse = aiOpsCoreServiceClient.createExecution(
+                new com.insightflow.gateway.domain.ExecutionCreateRequest(
+                        request.service_id(),
+                        request.workflow_id(),
+                        request.input(),
+                        request.model()
+                ),
+                requestId,
+                requestContext.userId(),
+                requestContext.teamId(),
+                requestContext.userRole()
         );
-        return successRecord(executionId, serviceId, null, requestId, input, createdAt, result, "estimated", "empty",
-                "보고서 생성기는 mock 실행 결과를 제공합니다.");
+        com.insightflow.gateway.domain.ExecutionDetailResponse detailResponse = aiOpsCoreServiceClient.getExecution(
+                createResponse.executionId(),
+                requestId,
+                requestContext.userId(),
+                requestContext.teamId(),
+                requestContext.userRole()
+        );
+        return mapAiOpsCoreExecution(detailResponse);
     }
 
     private ExecutionRecord executeWorkflow(String executionId,
@@ -240,7 +295,7 @@ class GatewayPlatformService {
         );
 
         return successRecord(executionId, workflow.steps().get(0).service_id(), workflow.workflow_id(), requestId, input, createdAt,
-                workflowResult, "completed", "available", "workflow 결과가 생성되었습니다.");
+                workflowResult, "completed", "available", "workflow 결과가 생성되었습니다.", request.model(), "gateway-workflow");
     }
 
     private ExecutionErrorPayload detectTriggeredError(Map<String, Object> input) {
@@ -274,9 +329,27 @@ class GatewayPlatformService {
         return new GatewayApiException(ErrorCode.valueOf(error.code()), status, error.message());
     }
 
+    private ExecutionErrorPayload toErrorPayload(GatewayApiException exception) {
+        return new ExecutionErrorPayload(
+                exception.errorCode().name(),
+                exception.getMessage(),
+                Map.of()
+        );
+    }
+
+    private ExecutionErrorPayload toErrorPayload(BusinessException exception) {
+        return new ExecutionErrorPayload(
+                exception.errorCode().name(),
+                exception.getMessage(),
+                Map.of()
+        );
+    }
+
     private ExecutionRecord failureRecord(String executionId,
                                           String serviceId,
                                           String workflowId,
+                                          String model,
+                                          String source,
                                           String requestId,
                                           Map<String, Object> input,
                                           String createdAt,
@@ -287,6 +360,8 @@ class GatewayPlatformService {
                 workflowId,
                 "FAILED",
                 requestId,
+                source,
+                model,
                 input,
                 null,
                 error,
@@ -307,13 +382,17 @@ class GatewayPlatformService {
                                           Object result,
                                           String costStatus,
                                           String recommendationState,
-                                          String recommendationMessage) {
+                                          String recommendationMessage,
+                                          String model,
+                                          String source) {
         return new ExecutionRecord(
                 executionId,
                 serviceId,
                 workflowId,
                 "SUCCEEDED",
                 requestId,
+                source,
+                model,
                 input,
                 result,
                 null,
@@ -379,8 +458,72 @@ class GatewayPlatformService {
 
     private String currentRequestId() {
         return InsightRequestContextHolder.getCurrent()
-                .map(context -> context.requestId())
+                .map(RequestContext::requestId)
                 .orElse("unknown");
+    }
+
+    private RequestContext currentRequestContext() {
+        return InsightRequestContextHolder.getCurrent()
+                .orElse(new RequestContext(currentRequestId(), "u_demo_001", "t_demo", "admin"));
+    }
+
+    private ExecutionRecord mapAiOpsCoreExecution(com.insightflow.gateway.domain.ExecutionDetailResponse detailResponse) {
+        Object payload = detailResponse.result() == null ? Map.of() : detailResponse.result().payload();
+        String createdAt = detailResponse.createdAt() == null ? Instant.now().toString() : detailResponse.createdAt().toString();
+        return new ExecutionRecord(
+                detailResponse.executionId(),
+                detailResponse.serviceId(),
+                detailResponse.workflowId(),
+                detailResponse.status(),
+                detailResponse.requestId(),
+                "ai-ops-core",
+                detailResponse.model(),
+                Map.of(),
+                payload,
+                detailResponse.errorCode() == null ? null : new ExecutionErrorPayload(detailResponse.errorCode(), "AI Ops Core execution failed.", Map.of()),
+                "pending",
+                "pending",
+                "비동기 집계 중입니다.",
+                createdAt,
+                Instant.now().toString()
+        );
+    }
+
+    private ExecutionStreamItem toExecutionStreamItem(ExecutionRecord record) {
+        Instant startedAt = parseInstant(record.created_at());
+        Instant finishedAt = parseInstant(record.completed_at());
+        Long durationMs = startedAt != null && finishedAt != null ? Math.max(0L, finishedAt.toEpochMilli() - startedAt.toEpochMilli()) : null;
+        return new ExecutionStreamItem(
+                record.execution_id(),
+                record.request_id(),
+                record.source() == null || record.source().isBlank() ? "gateway" : record.source(),
+                record.service_id(),
+                record.workflow_id(),
+                record.model() == null || record.model().isBlank() ? "-" : record.model(),
+                normalizeExecutionStatus(record.status()),
+                record.created_at(),
+                record.completed_at(),
+                durationMs,
+                record.error() == null ? null : record.error().message()
+        );
+    }
+
+    private String normalizeExecutionStatus(String status) {
+        if (status == null || status.isBlank()) {
+            return "FAILED";
+        }
+        if (status.startsWith("BLOCKED")) {
+            return "BLOCKED";
+        }
+        return status;
+    }
+
+    private Instant parseInstant(String value) {
+        try {
+            return value == null || value.isBlank() ? null : Instant.parse(value);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private Map<String, ServiceDefinition> buildServiceCatalog() {
@@ -391,7 +534,7 @@ class GatewayPlatformService {
                 "Knowledge Retrieval",
                 "per_request",
                 "기업 문서에서 근거를 찾아 요약 응답을 반환합니다.",
-                List.of("gpt-5.4", "gpt-5-mini", "internal-doc-search"),
+                List.of("gpt-4.1-mini", "gpt-4.1", "internal-doc-search"),
                 "첫 단계 컨텍스트 수집",
                 List.of("RAG", "citation", "search"),
                 true,
@@ -559,6 +702,8 @@ record ExecutionRecord(
         String workflow_id,
         String status,
         String request_id,
+        String source,
+        String model,
         Map<String, Object> input,
         Object result,
         ExecutionErrorPayload error,
@@ -571,6 +716,21 @@ record ExecutionRecord(
     ExecutionCreateResponse toCreateResponse() {
         return new ExecutionCreateResponse(execution_id, service_id, workflow_id, status, request_id);
     }
+}
+
+record ExecutionStreamItem(
+        String execution_id,
+        String request_id,
+        String source,
+        String service_id,
+        String workflow_id,
+        String model,
+        String status,
+        String started_at,
+        String finished_at,
+        Long duration_ms,
+        String error_message
+) {
 }
 
 record ServiceDefinition(

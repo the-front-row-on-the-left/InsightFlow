@@ -8,6 +8,5 @@ include(
     ':services:rate-limit-service',
     ':services:usage-service',
     ':services:billing-service',
-    ':services:notification-service',
-    ':services:recommendation-service'
+    ':services:notification-service'
 )

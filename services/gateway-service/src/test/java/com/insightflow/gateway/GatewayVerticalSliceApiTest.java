@@ -2,17 +2,32 @@ package com.insightflow.gateway;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.insightflow.gateway.client.AiOpsCoreServiceClient;
+import com.insightflow.gateway.domain.ExecutionCreateResponse;
+import com.insightflow.gateway.domain.ExecutionDetailResponse;
+import com.insightflow.gateway.domain.ExecutionResult;
+import com.insightflow.gateway.domain.OrchestrationTargets;
+import com.insightflow.gateway.domain.PolicyDecision;
+import com.insightflow.gateway.domain.RateLimitDecision;
+import com.insightflow.common.error.BusinessException;
+import com.insightflow.common.error.ErrorCode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -27,6 +42,9 @@ class GatewayVerticalSliceApiTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockBean
+    private AiOpsCoreServiceClient aiOpsCoreServiceClient;
 
     @Test
     void catalogEndpointsExposeDocumentSearchContract() throws Exception {
@@ -43,6 +61,7 @@ class GatewayVerticalSliceApiTest {
         assertThat(documentSearchService).isNotNull();
         assertThat(documentSearchService.path("name").asText()).isNotBlank();
         assertThat(documentSearchService.path("supported_models").isArray()).isTrue();
+        assertThat(documentSearchService.path("supported_models").get(0).asText()).isEqualTo("gpt-4.1-mini");
         assertThat(documentSearchService.path("execution_mode").asText()).isEqualTo("real");
 
         mockMvc.perform(get("/api/catalog/services/svc_doc_search"))
@@ -57,6 +76,71 @@ class GatewayVerticalSliceApiTest {
 
     @Test
     void docSearchExecutionCreateAndDetailReturnsRagPayload() throws Exception {
+        given(aiOpsCoreServiceClient.createExecution(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()))
+                .willReturn(new ExecutionCreateResponse(
+                        "exe_proxy_001",
+                        "req_proxy_001",
+                        "svc_doc_search",
+                        "wf_ad_hoc",
+                        "SUCCEEDED",
+                        new OrchestrationTargets("policy-service", "rate-limit-service", "document-search-provider"),
+                        new ExecutionResult(
+                                "document-search-provider",
+                                Map.of(
+                                        "type", "doc_search",
+                                        "answer_summary", "billing 문서 근거를 바탕으로 정책을 요약했습니다.",
+                                        "top_chunks", List.of(Map.of("doc_id", "doc_bill_018", "snippet", "청구 집계는 일 단위 잠정 계산 후 월말 확정 상태로 전환된다.", "score", 0.91)),
+                                        "citations", List.of(Map.of("doc_id", "doc_bill_018", "title", "월간 Billing Runbook", "section", "4.3")),
+                                        "document_scope", "billing"
+                                ),
+                                "billing 문서 근거를 바탕으로 정책을 요약했습니다.",
+                                120,
+                                88,
+                                208,
+                                420L
+                        )
+                ));
+        given(aiOpsCoreServiceClient.getExecution(
+                org.mockito.ArgumentMatchers.eq("exe_proxy_001"),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()))
+                .willReturn(new ExecutionDetailResponse(
+                        "exe_proxy_001",
+                        "req_proxy_001",
+                        "u_demo_001",
+                        "t_demo",
+                        "svc_doc_search",
+                        "wf_ad_hoc",
+                        "gpt-5.4-mini",
+                        "SUCCEEDED",
+                        null,
+                        new PolicyDecision(true, null, "DEFAULT_ALLOW"),
+                        new RateLimitDecision(true, "user", "u_demo_001", 9, "PASSED", "USER_DAILY_LIMIT"),
+                        new ExecutionResult(
+                                "document-search-provider",
+                                Map.of(
+                                        "type", "doc_search",
+                                        "answer_summary", "billing 문서 근거를 바탕으로 정책을 요약했습니다.",
+                                        "top_chunks", List.of(Map.of("doc_id", "doc_bill_018", "snippet", "청구 집계는 일 단위 잠정 계산 후 월말 확정 상태로 전환된다.", "score", 0.91)),
+                                        "citations", List.of(Map.of("doc_id", "doc_bill_018", "title", "월간 Billing Runbook", "section", "4.3")),
+                                        "document_scope", "billing"
+                                ),
+                                "billing 문서 근거를 바탕으로 정책을 요약했습니다.",
+                                120,
+                                88,
+                                208,
+                                420L
+                        ),
+                        Instant.parse("2026-03-20T08:00:00Z")
+                ));
+
         JsonNode createResponse = readJson(mockMvc.perform(post("/api/executions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -157,6 +241,70 @@ class GatewayVerticalSliceApiTest {
     }
 
     @Test
+    void executionsListReturnsRecentExecutionStreamItems() throws Exception {
+        given(aiOpsCoreServiceClient.createExecution(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()))
+                .willReturn(new ExecutionCreateResponse(
+                        "exe_proxy_list_001",
+                        "req_proxy_list_001",
+                        "svc_doc_search",
+                        "wf_ad_hoc",
+                        "SUCCEEDED",
+                        new OrchestrationTargets("policy-service", "rate-limit-service", "document-search-provider"),
+                        null
+                ));
+        given(aiOpsCoreServiceClient.getExecution(
+                org.mockito.ArgumentMatchers.eq("exe_proxy_list_001"),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()))
+                .willReturn(new ExecutionDetailResponse(
+                        "exe_proxy_list_001",
+                        "req_proxy_list_001",
+                        "u_demo_001",
+                        "t_demo",
+                        "svc_doc_search",
+                        "wf_ad_hoc",
+                        "gpt-5.4-mini",
+                        "SUCCEEDED",
+                        null,
+                        new PolicyDecision(true, null, "DEFAULT_ALLOW"),
+                        new RateLimitDecision(true, "user", "u_demo_001", 8, "PASSED", "USER_DAILY_LIMIT"),
+                        new ExecutionResult("document-search-provider", Map.of("type", "doc_search"), "ok", 10, 5, 15, 120L),
+                        Instant.parse("2026-03-20T08:00:00Z")
+                ));
+
+        mockMvc.perform(post("/api/executions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "service_id": "svc_doc_search",
+                                  "model": "gpt-5.4-mini",
+                                  "input": {
+                                    "query": "billing settlement policy",
+                                    "document_scope": "billing"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/executions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data[0].execution_id").value("exe_proxy_list_001"))
+                .andExpect(jsonPath("$.data[0].source").value("ai-ops-core"))
+                .andExpect(jsonPath("$.data[0].model").value("gpt-5.4-mini"))
+                .andExpect(jsonPath("$.data[0].status").value("SUCCEEDED"))
+                .andExpect(jsonPath("$.data[0].duration_ms").isNumber())
+                .andExpect(jsonPath("$.data[0].error_message").isEmpty());
+    }
+
+    @Test
     void invalidRequestReturnsStructuredErrorEnvelope() throws Exception {
         mockMvc.perform(post("/api/executions")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -176,23 +324,41 @@ class GatewayVerticalSliceApiTest {
     }
 
     @Test
-    void policyBlockedRequestReturnsStructuredErrorEnvelope() throws Exception {
+    void rateLimitedRequestReturnsStructuredErrorEnvelopeAndExecutionHistory() throws Exception {
+        given(aiOpsCoreServiceClient.createExecution(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString()))
+                .willThrow(new BusinessException(
+                        HttpStatus.TOO_MANY_REQUESTS,
+                        ErrorCode.RATE_LIMIT_EXCEEDED,
+                        "Request quota has been exceeded for the current scope."
+                ));
+
         mockMvc.perform(post("/api/executions")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "service_id": "svc_doc_search",
                                   "input": {
-                                    "query": "please policy_block this request",
+                                    "query": "billing settlement policy",
                                     "document_scope": "billing"
                                   }
                                 }
                                 """))
-                .andExpect(status().is4xxClientError())
+                .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.error.code").value("POLICY_BLOCKED"))
+                .andExpect(jsonPath("$.error.code").value("RATE_LIMIT_EXCEEDED"))
                 .andExpect(jsonPath("$.error.message").isNotEmpty())
                 .andExpect(jsonPath("$.meta.request_id").isNotEmpty());
+
+        mockMvc.perform(get("/api/executions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].status").value("FAILED"))
+                .andExpect(jsonPath("$.data[0].source").value("ai-ops-core"))
+                .andExpect(jsonPath("$.data[0].error_message").value("Request quota has been exceeded for the current scope."));
     }
 
     private JsonNode readJson(MvcResult result) throws Exception {

@@ -1,6 +1,20 @@
 spring:
   application:
     name: usage-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:usage_db}
+    username: ${DB_USERNAME:insightflow}
+    password: ${DB_PASSWORD:insightflow}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  flyway:
+    enabled: true
+    table: usage_flyway_schema_history
+    baseline-on-migrate: true
+    baseline-version: 0
 
 server:
   port: ${USAGE_PORT:8083}
@@ -20,11 +34,7 @@ insightflow:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     topics:
       ai-requested: ${AI_REQUESTED_TOPIC:ai.requested}
+      ai-completed: ${AI_COMPLETED_TOPIC:ai.completed}
       usage-tracked: ${USAGE_TRACKED_TOPIC:usage.tracked}
       policy-checked: ${POLICY_CHECKED_TOPIC:policy.checked}
       limit-applied: ${LIMIT_APPLIED_TOPIC:limit.applied}
-
-spring.datasource:
-  url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:insightflow}
-  username: ${DB_USERNAME:insightflow}
-  password: ${DB_PASSWORD:insightflow}

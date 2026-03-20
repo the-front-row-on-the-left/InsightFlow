@@ -13,8 +13,7 @@ def serviceProjects = [
     ':services:rate-limit-service',
     ':services:usage-service',
     ':services:billing-service',
-    ':services:notification-service',
-    ':services:recommendation-service'
+    ':services:notification-service'
 ]
 
 allprojects {
@@ -90,8 +89,49 @@ serviceProjects.each { projectPath ->
             }
         }
 
+        tasks.named('bootJar') {
+            archiveFileName = 'app.jar'
+        }
+
+        tasks.named('jar') {
+            enabled = false
+        }
+
         tasks.withType(Test).configureEach {
             useJUnitPlatform()
         }
+    }
+}
+
+project(':services:usage-service') {
+    dependencies {
+        implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+        implementation 'org.springframework.kafka:spring-kafka'
+        implementation 'org.flywaydb:flyway-core'
+        implementation 'org.flywaydb:flyway-database-postgresql'
+        runtimeOnly 'org.postgresql:postgresql'
+        testImplementation 'com.h2database:h2'
+    }
+}
+
+project(':services:billing-service') {
+    dependencies {
+        implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+        implementation 'org.springframework.kafka:spring-kafka'
+        implementation 'org.flywaydb:flyway-core'
+        implementation 'org.flywaydb:flyway-database-postgresql'
+        runtimeOnly 'org.postgresql:postgresql'
+        testImplementation 'com.h2database:h2'
+    }
+}
+
+project(':services:notification-service') {
+    dependencies {
+        implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+        implementation 'org.springframework.kafka:spring-kafka'
+        implementation 'org.flywaydb:flyway-core'
+        implementation 'org.flywaydb:flyway-database-postgresql'
+        runtimeOnly 'org.postgresql:postgresql'
+        testImplementation 'com.h2database:h2'
     }
 }

@@ -36,7 +36,7 @@ class OpenAiDocumentSearchSummarizer {
                                    @Value("${insightflow.ai.openai.enabled:true}") boolean enabled,
                                    @Value("${insightflow.ai.openai.api-key:}") String apiKey,
                                    @Value("${insightflow.ai.openai.base-url:https://api.openai.com/v1}") String baseUrl,
-                                   @Value("${insightflow.ai.openai.model:gpt-5-mini}") String model,
+                                   @Value("${insightflow.ai.openai.model:gpt-4.1-mini}") String model,
                                    @Value("${insightflow.ai.openai.timeout-seconds:45}") long timeoutSeconds) {
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder()
@@ -45,7 +45,7 @@ class OpenAiDocumentSearchSummarizer {
         this.enabled = enabled;
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.baseUrl = (baseUrl == null || baseUrl.isBlank()) ? "https://api.openai.com/v1" : baseUrl.replaceAll("/+$", "");
-        this.model = (model == null || model.isBlank()) ? "gpt-5-mini" : model.trim();
+        this.model = (model == null || model.isBlank()) ? "gpt-4.1-mini" : model.trim();
         this.timeout = Duration.ofSeconds(Math.max(5, timeoutSeconds));
     }
 

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ExecutionResult(
         String provider,
+        Object payload,
         String output,
         @JsonProperty("prompt_tokens")
         Integer promptTokens,

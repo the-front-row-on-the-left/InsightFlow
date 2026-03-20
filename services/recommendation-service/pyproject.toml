@@ -1,0 +1,9 @@
+[project]
+name = "insightflow-recommendation-service"
+version = "0.1.0"
+description = "FastAPI recommendation service for InsightFlow"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

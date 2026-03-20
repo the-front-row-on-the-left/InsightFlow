@@ -16,11 +16,11 @@ import com.insightflow.aiopscore.domain.ExecutionResult;
 import com.insightflow.aiopscore.domain.PolicyDecision;
 import com.insightflow.aiopscore.domain.RateLimitDecision;
 import com.insightflow.aiopscore.event.AiOpsCoreEventPublisher;
+import com.insightflow.aiopscore.provider.AiOpsCoreDocumentSearchProvider;
 import com.insightflow.aiopscore.provider.AiOpsCoreMockAiProvider;
 import com.insightflow.aiopscore.repository.AiOpsCoreExecutionRepository;
 import com.insightflow.common.error.BusinessException;
 import com.insightflow.common.error.ErrorCode;
-import com.insightflow.common.event.AiRequestedPayload;
 import com.insightflow.common.web.InsightRequestContextHolder;
 import com.insightflow.common.web.RequestContext;
 import org.slf4j.Logger;
@@ -36,6 +36,7 @@ public class AiOpsCoreExecutionService {
     private final AiOpsCoreProperties properties;
     private final PolicyServiceClient policyServiceClient;
     private final RateLimitServiceClient rateLimitServiceClient;
+    private final AiOpsCoreDocumentSearchProvider documentSearchProvider;
     private final AiOpsCoreMockAiProvider mockAiProvider;
     private final AiOpsCoreExecutionRepository repository;
     private final AiOpsCoreEventPublisher eventPublisher;
@@ -43,12 +44,14 @@ public class AiOpsCoreExecutionService {
     AiOpsCoreExecutionService(AiOpsCoreProperties properties,
                               PolicyServiceClient policyServiceClient,
                               RateLimitServiceClient rateLimitServiceClient,
+                              AiOpsCoreDocumentSearchProvider documentSearchProvider,
                               AiOpsCoreMockAiProvider mockAiProvider,
                               AiOpsCoreExecutionRepository repository,
                               AiOpsCoreEventPublisher eventPublisher) {
         this.properties = properties;
         this.policyServiceClient = policyServiceClient;
         this.rateLimitServiceClient = rateLimitServiceClient;
+        this.documentSearchProvider = documentSearchProvider;
         this.mockAiProvider = mockAiProvider;
         this.repository = repository;
         this.eventPublisher = eventPublisher;
@@ -70,6 +73,7 @@ public class AiOpsCoreExecutionService {
                 request.model().trim(),
                 request.input()
         );
+        eventPublisher.publishAiRequested(command);
 
         PolicyDecision policyDecision = policyServiceClient.evaluate(command);
         if (!policyDecision.allowed()) {
@@ -83,11 +87,11 @@ public class AiOpsCoreExecutionService {
             saveAndPublish(command, "BLOCKED_RATE_LIMIT", ErrorCode.RATE_LIMIT_EXCEEDED.name(), policyDecision,
                     rateLimitDecision, null);
             throw new BusinessException(HttpStatus.TOO_MANY_REQUESTS, ErrorCode.RATE_LIMIT_EXCEEDED,
-                    "Request quota has been exceeded for the current scope.");
+                    buildRateLimitMessage(rateLimitDecision));
         }
 
         try {
-            ExecutionResult result = mockAiProvider.execute(command);
+            ExecutionResult result = executeProvider(command);
             ExecutionRecord record = saveAndPublish(command, "SUCCEEDED", null, policyDecision, rateLimitDecision, result);
             log.info("execution_id={} request_id={} service_id={} workflow_id={} status=SUCCEEDED",
                     command.executionId(), command.requestId(), command.serviceId(), command.workflowId());
@@ -108,7 +112,8 @@ public class AiOpsCoreExecutionService {
     public Map<String, Object> operationsSnapshot() {
         return Map.of(
                 "executions", repository.findAll().stream().map(ExecutionRecord::toDetailResponse).toList(),
-                "ai_requested_events", eventPublisher.snapshotAiRequested()
+                "ai_requested_events", eventPublisher.snapshotAiRequested(),
+                "ai_completed_events", eventPublisher.snapshotAiCompleted()
         );
     }
 
@@ -145,6 +150,28 @@ public class AiOpsCoreExecutionService {
         return "Execution was blocked by policy: " + decision.reasonCode();
     }
 
+    private String buildRateLimitMessage(RateLimitDecision decision) {
+        String scope = decision.scope() == null || decision.scope().isBlank() ? "unknown" : decision.scope();
+        String scopeId = decision.scopeId() == null || decision.scopeId().isBlank() ? "unknown" : decision.scopeId();
+        String appliedRule = decision.appliedRule() == null || decision.appliedRule().isBlank() ? "unknown" : decision.appliedRule();
+        return "Request quota has been exceeded for scope "
+                + scope
+                + " ("
+                + scopeId
+                + "). Remaining quota: "
+                + decision.remainingQuota()
+                + ". Applied rule: "
+                + appliedRule
+                + ".";
+    }
+
+    private ExecutionResult executeProvider(ExecutionCommand command) {
+        if ("svc_doc_search".equals(command.serviceId())) {
+            return documentSearchProvider.execute(command);
+        }
+        return mockAiProvider.execute(command);
+    }
+
     private ExecutionRecord saveAndPublish(ExecutionCommand command,
                                            String status,
                                            String errorCode,
@@ -167,15 +194,7 @@ public class AiOpsCoreExecutionService {
                 Instant.now()
         );
         repository.save(record);
-        eventPublisher.publishAiRequested(new AiRequestedPayload(
-                command.requestId(),
-                command.userId(),
-                command.teamId(),
-                command.serviceId(),
-                command.workflowId(),
-                command.model(),
-                command.inputSize()
-        ));
+        eventPublisher.publishAiCompleted(command, status, result, "SUCCEEDED".equals(status));
         return record;
     }
 }

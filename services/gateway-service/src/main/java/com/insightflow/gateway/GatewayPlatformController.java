@@ -18,7 +18,9 @@ import java.util.List;
                 "http://127.0.0.1:4173",
                 "http://localhost:4173",
                 "http://127.0.0.1:5173",
-                "http://localhost:5173"
+                "http://localhost:5173",
+                "http://127.0.0.1:5174",
+                "http://localhost:5174"
         },
         allowedHeaders = "*"
 )
@@ -55,6 +57,11 @@ class GatewayPlatformController {
     @PostMapping("/api/executions")
     ApiResponse<ExecutionCreateResponse> createExecution(@RequestBody ExecutionCreateRequest request) {
         return ApiResponses.ok(gatewayPlatformService.createExecution(request));
+    }
+
+    @GetMapping("/api/executions")
+    ApiResponse<List<ExecutionStreamItem>> getExecutions() {
+        return ApiResponses.ok(gatewayPlatformService.listExecutions());
     }
 
     @GetMapping("/api/executions/{executionId}")

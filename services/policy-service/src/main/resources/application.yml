@@ -31,4 +31,4 @@ insightflow:
       model: ${POLICY_BLOCKED_MODEL:gpt-4o}
     team-monthly-budget:
       blocked-team-id: ${POLICY_BUDGET_BLOCKED_TEAM_ID:t_budget_blocked}
-    service-allowlist: ${POLICY_ALLOWED_SERVICES:svc_doc_summary,svc_report_generator}
+    service-allowlist: ${POLICY_ALLOWED_SERVICES:svc_doc_search,svc_doc_summary,svc_chat_assistant,svc_report_generator}

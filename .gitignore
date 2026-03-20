@@ -26,6 +26,16 @@ node_modules/
 dist/
 .vite/
 
+# Python
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+*.py[cod]
+
 # Java / Gradle
 .gradle/
 build/
