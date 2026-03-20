@@ -1,5 +1,6 @@
 .git
 .gradle
+build
 **/build
 apps
 node_modules

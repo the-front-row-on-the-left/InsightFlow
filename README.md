@@ -13,7 +13,7 @@
 - `services/usage-service`: Usage 조회 골격
 - `services/billing-service`: Billing 조회 골격
 - `services/notification-service`: 내부 이벤트 소비용 Notification 골격
-- `services/recommendation-service`: Recommendation 조회 골격
+- `services/recommendation-service`: FastAPI 기반 Recommendation 조회/절감 추천 서비스
 
 현재 범위
 
@@ -22,16 +22,19 @@
 - Rate Limit은 기본적으로 Redis 카운터를 사용합니다.
 - `ai.requested`, `policy.checked`, `limit.applied`는 Kafka 토픽 발행을 기준으로 구성돼 있습니다.
 - UI는 문서 기준 서비스 목록과 다음 작업 안내만 보여줍니다.
+- Analytics 전용 별도 프론트는 아직 만들지 않았고, C 역할 문서 기준 최소 조회 API 골격을 먼저 제공합니다.
 
 실행 기준
 
-- Backend: Java 21, Gradle
+- Backend: Java 21, Gradle, FastAPI(Python 3.12 for recommendation-service)
 - Frontend: Node.js 20+
 
 공통으로 먼저 맞춰둔 것
 
 - 루트 코드 스타일 규칙: `.editorconfig`
 - 로컬 인프라 템플릿: `compose.yaml`
+- Java 서비스 공용 이미지 빌드 파일: `Dockerfile`
+- Recommendation 전용 FastAPI 이미지: `services/recommendation-service/Dockerfile`
 - 공통 환경 변수 예시: `.env.example`
 - 백엔드 공통 모듈: `shared/common-web`
 - 프론트 공통 env/API 진입점: `apps/ai-platform-ui/.env.example`, `apps/ai-platform-ui/src/lib/api.ts`
@@ -39,25 +42,37 @@
 로컬 시작 순서
 
 1. `.env.example`를 참고해 환경값 준비
-2. `docker compose up -d`
-3. `docker compose up -d --build`
-4. 필요하면 헬스체크와 API 호출로 확인
-5. 프론트에서 `npm install && npm run dev`
+2. 인프라와 백엔드 서비스를 함께 띄우려면 `docker compose up -d --build`
+3. recommendation-service만 다시 빌드하려면 `docker compose build recommendation-service`
+4. recommendation-service는 FastAPI 컨테이너로 `8086` 포트를 사용합니다.
+5. 프론트만 로컬에서 띄우려면 `apps/ai-platform-ui`에서 `npm install && npm run dev`
 
-서비스를 컨테이너로 함께 실행하려면
+서비스를 컨테이너로 함께 실행한 뒤 확인할 수 있는 기본 헬스 체크
 
-- 인프라 + B 서비스까지 한 번에: `docker compose up -d --build`
-- 헬스 확인
-  - `curl http://localhost:8080/health`
-  - `curl http://localhost:8087/health`
-  - `curl http://localhost:8081/health`
-  - `curl http://localhost:8082/health`
+- `curl http://localhost:8080/health`
+- `curl http://localhost:8087/health`
+- `curl http://localhost:8081/health`
+- `curl http://localhost:8082/health`
+- `curl http://localhost:8083/health`
+- `curl http://localhost:8084/health`
+- `curl http://localhost:8085/health`
+
+Analytics 최소 조회 API
+
+- `GET /api/usage/users/{user_id}`
+- `GET /api/usage/teams/{team_id}`
+- `GET /api/usage/services/{service_id}`
+- `GET /api/billing/users/{user_id}`
+- `GET /api/billing/teams/{team_id}`
+- `GET /api/billing/workflows/{workflow_id}`
+- `GET /api/recommendations?user_id=...`
 
 팀 역할 기준
 
 - A: `apps/ai-platform-ui`
 - B: `services/gateway-service`, `services/ai-ops-core-service`, `services/policy-service`, `services/rate-limit-service`
 - C: `services/usage-service`, `services/billing-service`, `services/notification-service`, `services/recommendation-service`
+  - Recommendation 런타임은 compose에서 `services/recommendation-service` FastAPI 컨테이너를 사용합니다.
 
 공통 계약 출처
 

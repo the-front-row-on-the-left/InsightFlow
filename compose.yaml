@@ -40,6 +40,90 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
 
+  usage-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GRADLE_PROJECT: :services:usage-service
+        SERVICE_PATH: services/usage-service
+        SERVICE_PORT: 8083
+    container_name: insightflow-usage-service
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      APP_ENVIRONMENT: docker
+      USAGE_PORT: 8083
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-insightflow}
+      DB_USERNAME: ${POSTGRES_USER:-insightflow}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-insightflow}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+    ports:
+      - "${USAGE_PORT:-8083}:8083"
+
+  billing-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GRADLE_PROJECT: :services:billing-service
+        SERVICE_PATH: services/billing-service
+        SERVICE_PORT: 8084
+    container_name: insightflow-billing-service
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      APP_ENVIRONMENT: docker
+      BILLING_PORT: 8084
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-insightflow}
+      DB_USERNAME: ${POSTGRES_USER:-insightflow}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-insightflow}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+    ports:
+      - "${BILLING_PORT:-8084}:8084"
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GRADLE_PROJECT: :services:notification-service
+        SERVICE_PATH: services/notification-service
+        SERVICE_PORT: 8085
+    container_name: insightflow-notification-service
+    depends_on:
+      - kafka
+    environment:
+      APP_ENVIRONMENT: docker
+      NOTIFICATION_PORT: 8085
+      KAFKA_BOOTSTRAP_SERVERS: kafka:19092
+    ports:
+      - "${NOTIFICATION_PORT:-8085}:8085"
+
+  recommendation-service:
+    build:
+      context: ./services/recommendation-service
+      dockerfile: Dockerfile
+    container_name: insightflow-recommendation-service
+    depends_on:
+      - usage-service
+      - billing-service
+    environment:
+      APP_ENVIRONMENT: docker
+      RECOMMENDATION_PORT: 8086
+      DEFAULT_USER_ID: ${DEFAULT_USER_ID:-u_demo_001}
+      DEFAULT_TEAM_ID: ${DEFAULT_TEAM_ID:-t_demo}
+      USAGE_SERVICE_BASE_URL: http://usage-service:8083
+      BILLING_SERVICE_BASE_URL: http://billing-service:8084
+    ports:
+      - "${RECOMMENDATION_PORT:-8086}:8086"
+
   policy-service:
     build:
       context: .
