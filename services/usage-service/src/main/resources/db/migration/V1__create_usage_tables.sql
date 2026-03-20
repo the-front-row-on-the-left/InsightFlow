@@ -1,0 +1,42 @@
+create table if not exists usage_event_snapshots (
+    request_id varchar(100) primary key,
+    requested_event_id varchar(100),
+    completed_event_id varchar(100),
+    user_id varchar(100),
+    team_id varchar(100),
+    service_id varchar(100),
+    workflow_id varchar(100),
+    requested_model varchar(100),
+    completed_model varchar(100),
+    status varchar(32),
+    prompt_tokens integer,
+    completion_tokens integer,
+    total_tokens integer,
+    latency_ms integer,
+    billable boolean,
+    requested_at timestamp with time zone,
+    completed_at timestamp with time zone,
+    created_at timestamp with time zone not null default current_timestamp,
+    updated_at timestamp with time zone not null default current_timestamp
+);
+
+create table if not exists usage_records (
+    request_id varchar(100) primary key,
+    tracking_event_id varchar(100) not null unique,
+    user_id varchar(100) not null,
+    team_id varchar(100) not null,
+    service_id varchar(100) not null,
+    workflow_id varchar(100) not null,
+    model varchar(100) not null,
+    status varchar(32) not null,
+    policy_result varchar(32) not null,
+    limit_result varchar(32) not null,
+    prompt_tokens integer not null,
+    completion_tokens integer not null,
+    total_tokens integer not null,
+    latency_ms integer not null,
+    billable boolean not null,
+    occurred_at timestamp with time zone not null,
+    tracked_at timestamp with time zone not null,
+    created_at timestamp with time zone not null default current_timestamp
+);

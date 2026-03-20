@@ -3,9 +3,7 @@ package com.insightflow.usage.repository;
 import com.insightflow.usage.domain.UsageRecord;
 import java.time.OffsetDateTime;
 import java.util.List;
-import org.springframework.stereotype.Repository;
 
-@Repository
 public class InMemoryUsageRecordRepository implements UsageRecordRepository {
 
     private static final List<UsageRecord> SEEDED_RECORDS = List.of(
@@ -138,6 +136,10 @@ public class InMemoryUsageRecordRepository implements UsageRecordRepository {
                     OffsetDateTime.parse("2026-03-20T12:05:00Z")
             )
     );
+
+    public static List<UsageRecord> seededRecords() {
+        return SEEDED_RECORDS;
+    }
 
     @Override
     public List<UsageRecord> findAll() {

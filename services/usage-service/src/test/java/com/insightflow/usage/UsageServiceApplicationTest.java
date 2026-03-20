@@ -4,20 +4,30 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.insightflow.usage.controller.UsageController;
 import com.insightflow.usage.repository.InMemoryUsageRecordRepository;
+import com.insightflow.usage.repository.UsageRecordRepository;
 import com.insightflow.usage.service.UsageQueryService;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Import;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(UsageController.class)
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:usage-service;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false",
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.flyway.enabled=true"
+})
 @AutoConfigureMockMvc(addFilters = false)
-@Import({UsageQueryService.class, InMemoryUsageRecordRepository.class})
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class UsageServiceApplicationTest {
 
     @Autowired
@@ -25,6 +35,12 @@ class UsageServiceApplicationTest {
 
     @Autowired
     private ApplicationContext applicationContext;
+
+    @Autowired
+    private DataSource dataSource;
+
+    @Autowired
+    private UsageRecordRepository usageRecordRepository;
 
     @Test
     void returnsUsageByUser() throws Exception {
@@ -87,7 +103,24 @@ class UsageServiceApplicationTest {
     }
 
     @Test
-    void registersUsageQueryServiceBean() {
-        org.assertj.core.api.Assertions.assertThat(applicationContext.getBean(UsageQueryService.class)).isNotNull();
+    void contextStartsWithUsageFlywayAndJdbcRepositories() throws Exception {
+        assertThat(applicationContext.getBean(UsageQueryService.class)).isNotNull();
+        assertThat(applicationContext.containsBean("flyway")).isTrue();
+        assertThat(usageRecordRepository).isNotInstanceOf(InMemoryUsageRecordRepository.class);
+
+        Class<?> snapshotRepositoryType =
+                Class.forName("com.insightflow.usage.repository.UsageEventSnapshotRepository");
+        assertThat(applicationContext.getBeanNamesForType(snapshotRepositoryType)).hasSize(1);
+
+        try (Connection connection = dataSource.getConnection()) {
+            assertThat(hasTable(connection, "usage_event_snapshots")).isTrue();
+            assertThat(hasTable(connection, "usage_records")).isTrue();
+        }
+    }
+
+    private boolean hasTable(Connection connection, String tableName) throws Exception {
+        try (ResultSet resultSet = connection.getMetaData().getTables(null, null, tableName, null)) {
+            return resultSet.next();
+        }
     }
 }
