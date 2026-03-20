@@ -7,6 +7,7 @@ group = 'com.insightflow'
 version = '0.0.1-SNAPSHOT'
 
 def serviceProjects = [
+    ':services:ai-ops-core-service',
     ':services:gateway-service',
     ':services:policy-service',
     ':services:rate-limit-service',
@@ -43,6 +44,7 @@ project(':shared:common-web') {
 
     dependencies {
         implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework.kafka:spring-kafka'
         testImplementation 'org.springframework.boot:spring-boot-starter-test'
     }
 
@@ -74,6 +76,18 @@ serviceProjects.each { projectPath ->
             implementation 'org.springframework.boot:spring-boot-starter-web'
             implementation 'org.springframework.boot:spring-boot-starter-actuator'
             testImplementation 'org.springframework.boot:spring-boot-starter-test'
+        }
+
+        if (projectPath in [':services:ai-ops-core-service', ':services:gateway-service', ':services:policy-service', ':services:rate-limit-service']) {
+            dependencies {
+                implementation 'org.springframework.kafka:spring-kafka'
+            }
+        }
+
+        if (projectPath == ':services:rate-limit-service') {
+            dependencies {
+                implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+            }
         }
 
         tasks.withType(Test).configureEach {
