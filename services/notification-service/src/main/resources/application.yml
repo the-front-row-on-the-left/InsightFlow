@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: notification-service
+
+server:
+  port: ${NOTIFICATION_PORT:8085}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+insightflow:
+  environment: ${APP_ENVIRONMENT:local}
+  defaults:
+    user-id: ${DEFAULT_USER_ID:u_demo_001}
+    team-id: ${DEFAULT_TEAM_ID:t_demo}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    topics:
+      cost-calculated: ${COST_CALCULATED_TOPIC:cost.calculated}
+      optimization-recommended: ${OPTIMIZATION_RECOMMENDED_TOPIC:optimization.recommended}

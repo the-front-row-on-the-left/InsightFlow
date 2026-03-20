@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: recommendation-service
+
+server:
+  port: ${RECOMMENDATION_PORT:8086}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+insightflow:
+  environment: ${APP_ENVIRONMENT:local}
+  defaults:
+    user-id: ${DEFAULT_USER_ID:u_demo_001}
+    team-id: ${DEFAULT_TEAM_ID:t_demo}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    topics:
+      usage-tracked: ${USAGE_TRACKED_TOPIC:usage.tracked}
+      cost-calculated: ${COST_CALCULATED_TOPIC:cost.calculated}
+      optimization-recommended: ${OPTIMIZATION_RECOMMENDED_TOPIC:optimization.recommended}
+
+spring.datasource:
+  url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:insightflow}
+  username: ${DB_USERNAME:insightflow}
+  password: ${DB_PASSWORD:insightflow}

@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: rate-limit-service
+
+server:
+  port: ${RATE_LIMIT_PORT:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+insightflow:
+  environment: ${APP_ENVIRONMENT:local}
+  defaults:
+    user-id: ${DEFAULT_USER_ID:u_demo_001}
+    team-id: ${DEFAULT_TEAM_ID:t_demo}
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    topics:
+      limit-applied: ${LIMIT_APPLIED_TOPIC:limit.applied}

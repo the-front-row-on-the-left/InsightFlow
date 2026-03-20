@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: usage-service
+
+server:
+  port: ${USAGE_PORT:8083}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+insightflow:
+  environment: ${APP_ENVIRONMENT:local}
+  defaults:
+    user-id: ${DEFAULT_USER_ID:u_demo_001}
+    team-id: ${DEFAULT_TEAM_ID:t_demo}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    topics:
+      ai-requested: ${AI_REQUESTED_TOPIC:ai.requested}
+      usage-tracked: ${USAGE_TRACKED_TOPIC:usage.tracked}
+      policy-checked: ${POLICY_CHECKED_TOPIC:policy.checked}
+      limit-applied: ${LIMIT_APPLIED_TOPIC:limit.applied}
+
+spring.datasource:
+  url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:insightflow}
+  username: ${DB_USERNAME:insightflow}
+  password: ${DB_PASSWORD:insightflow}
