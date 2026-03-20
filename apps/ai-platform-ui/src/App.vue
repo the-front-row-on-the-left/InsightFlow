@@ -1,63 +1,40 @@
 <template>
-  <main class="app-shell">
-    <section class="hero">
-      <p class="eyebrow">InsightFlow</p>
-      <h1>AI Ops Platform Basic Package</h1>
-      <p class="description">
-        문서 패키지를 기준으로 만든 최소 UI 골격입니다. 다음 단계는 Gateway 실행 API와
-        Usage/Billing/Recommendation 조회 API를 연결하는 것입니다.
-      </p>
-    </section>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">InsightFlow</p>
+        <h1>AI Service Studio</h1>
+      </div>
+      <nav class="nav-links">
+        <RouterLink to="/catalog">Catalog</RouterLink>
+        <RouterLink to="/workflows/new">New Workflow</RouterLink>
+      </nav>
+    </header>
 
-    <section class="card-grid">
-      <article v-for="service in services" :key="service.service_id" class="service-card">
-        <span class="badge">{{ service.category }}</span>
-        <h2>{{ service.name }}</h2>
-        <p>{{ service.pricing_model }}</p>
-        <small>{{ service.supported_models.join(', ') }}</small>
-      </article>
-    </section>
-  </main>
+    <main class="main-content">
+      <section class="hero-panel">
+        <p class="hero-kicker">Demo Target</p>
+        <h2>서비스 탐색, 실행, 워크플로우 저장/재실행까지 한 흐름으로 연결합니다.</h2>
+        <p>
+          `svc_doc_search`는 end-to-end 데모 대상으로 연결하고, 나머지 서비스는 mock 결과로
+          경험을 완성합니다.
+        </p>
+      </section>
+
+      <RouterView />
+    </main>
+  </div>
 </template>
 
 <script setup lang="ts">
-const services = [
-  {
-    service_id: 'svc_doc_summary',
-    name: 'Document Summary',
-    category: 'analysis',
-    pricing_model: 'per_token',
-    supported_models: ['gpt-4o-mini'],
-  },
-  {
-    service_id: 'svc_team_policy',
-    name: 'Team Policy Check',
-    category: 'governance',
-    pricing_model: 'internal',
-    supported_models: ['policy-service'],
-  },
-  {
-    service_id: 'svc_cost_review',
-    name: 'Cost Recommendation',
-    category: 'analytics',
-    pricing_model: 'per_request',
-    supported_models: ['rule-based'],
-  },
-  {
-    service_id: 'svc_rate_limit_guard',
-    name: 'Rate Limit Guard',
-    category: 'control',
-    pricing_model: 'internal',
-    supported_models: ['rate-limit-service'],
-  },
-]
+import { RouterLink, RouterView } from 'vue-router'
 </script>
 
 <style scoped>
 :global(body) {
   margin: 0;
-  font-family: "Helvetica Neue", Arial, sans-serif;
-  background: #f5f1e8;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  background: #efe8db;
   color: #1f1f1f;
 }
 
@@ -65,17 +42,27 @@ const services = [
   box-sizing: border-box;
 }
 
-.app-shell {
-  min-height: 100vh;
-  padding: 48px 24px 64px;
-  background:
-    radial-gradient(circle at top left, rgba(212, 167, 98, 0.35), transparent 28%),
-    linear-gradient(180deg, #f8f4ec 0%, #efe5d6 100%);
+:global(a) {
+  color: inherit;
+  text-decoration: none;
 }
 
-.hero {
-  max-width: 760px;
-  margin: 0 auto 32px;
+.app-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(190, 127, 55, 0.22), transparent 24%),
+    radial-gradient(circle at right top, rgba(28, 91, 82, 0.12), transparent 20%),
+    linear-gradient(180deg, #f7f1e6 0%, #eadfcb 100%);
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 32px 24px 0;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .eyebrow {
@@ -85,60 +72,76 @@ const services = [
   text-transform: uppercase;
 }
 
-h1 {
+h1,
+h2 {
   margin: 0;
-  font-size: clamp(36px, 6vw, 64px);
-  line-height: 0.98;
+  line-height: 1;
 }
 
-.description {
-  max-width: 620px;
-  margin-top: 18px;
-  font-size: 18px;
-  line-height: 1.6;
+h1 {
+  font-size: clamp(28px, 4vw, 44px);
 }
 
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+.nav-links {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.nav-links a {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1px solid rgba(31, 31, 31, 0.08);
+}
+
+.nav-links a.router-link-active {
+  background: #1f1f1f;
+  color: #f7f1e6;
+}
+
+.main-content {
   max-width: 1100px;
   margin: 0 auto;
+  padding: 24px 24px 64px;
 }
 
-.service-card {
-  padding: 20px;
-  border: 1px solid rgba(31, 31, 31, 0.08);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(8px);
+.hero-panel {
+  margin-bottom: 24px;
+  padding: 24px;
+  border-radius: 28px;
+  background: rgba(255, 250, 242, 0.72);
+  border: 1px solid rgba(31, 31, 31, 0.06);
+  box-shadow: 0 18px 36px rgba(68, 53, 24, 0.08);
 }
 
-.badge {
-  display: inline-block;
-  margin-bottom: 12px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #1f1f1f;
-  color: #f8f4ec;
-  font-size: 12px;
+.hero-kicker {
+  margin: 0 0 10px;
+  font-size: 13px;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+  color: #8e5e20;
 }
 
-h2 {
-  margin: 0 0 8px;
-  font-size: 20px;
+.hero-panel h2 {
+  max-width: 760px;
+  font-size: clamp(24px, 3.4vw, 38px);
 }
 
-p,
-small {
-  display: block;
-  margin: 0;
+.hero-panel p:last-child {
+  max-width: 700px;
+  margin-top: 14px;
   line-height: 1.5;
 }
 
-small {
-  margin-top: 12px;
-  color: #5d564d;
+@media (max-width: 720px) {
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nav-links {
+    flex-wrap: wrap;
+  }
 }
 </style>
