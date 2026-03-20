@@ -32,12 +32,13 @@ public class JdbcUsageRecordRepository implements UsageRecordRepository {
         );
     }
 
+    @Override
     public void save(TrackedUsageEvent trackedUsageEvent) {
-        save(trackedUsageEvent, trackedUsageEvent.status().equals("BLOCKED") ? "DENIED" : "ALLOWED",
+        saveWithDefaults(trackedUsageEvent, trackedUsageEvent.status().equals("BLOCKED") ? "DENIED" : "ALLOWED",
                 trackedUsageEvent.status().equals("BLOCKED") ? "NOT_APPLIED" : "PASSED");
     }
 
-    public void save(TrackedUsageEvent trackedUsageEvent, String policyResult, String limitResult) {
+    private void saveWithDefaults(TrackedUsageEvent trackedUsageEvent, String policyResult, String limitResult) {
         if (existsByRequestId(trackedUsageEvent.requestId())) {
             jdbcTemplate.update(
                     """

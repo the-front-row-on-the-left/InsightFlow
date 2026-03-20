@@ -1,6 +1,8 @@
 package com.insightflow.usage.repository;
 
+import com.insightflow.usage.domain.TrackedUsageEvent;
 import com.insightflow.usage.domain.UsageRecord;
+import java.util.ArrayList;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -137,8 +139,31 @@ public class InMemoryUsageRecordRepository implements UsageRecordRepository {
             )
     );
 
+    private final List<UsageRecord> records = new ArrayList<>(SEEDED_RECORDS);
+
     @Override
     public List<UsageRecord> findAll() {
-        return SEEDED_RECORDS;
+        return List.copyOf(records);
+    }
+
+    @Override
+    public void save(TrackedUsageEvent trackedUsageEvent) {
+        records.removeIf(record -> record.requestId().equals(trackedUsageEvent.requestId()));
+        records.add(new UsageRecord(
+                trackedUsageEvent.requestId(),
+                trackedUsageEvent.userId(),
+                trackedUsageEvent.teamId(),
+                trackedUsageEvent.serviceId(),
+                trackedUsageEvent.workflowId(),
+                trackedUsageEvent.model(),
+                trackedUsageEvent.status(),
+                "BLOCKED".equals(trackedUsageEvent.status()) ? "DENIED" : "ALLOWED",
+                "BLOCKED".equals(trackedUsageEvent.status()) ? "NOT_APPLIED" : "PASSED",
+                trackedUsageEvent.promptTokens(),
+                trackedUsageEvent.completionTokens(),
+                trackedUsageEvent.totalTokens(),
+                trackedUsageEvent.latencyMs(),
+                trackedUsageEvent.occurredAt()
+        ));
     }
 }
